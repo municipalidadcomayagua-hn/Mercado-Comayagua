@@ -57,9 +57,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Fuerza el cambio de contrasena temporal para usuarios migrados desde
-  // Firebase (Fase 4, ver scripts/migrate-users.ts) antes de dejarlos usar
-  // el resto del sistema.
+  // Fuerza el cambio de contrasena temporal cuando un admin crea una cuenta
+  // nueva (Fase 4), antes de dejar usar el resto del sistema.
   if (user && pathname !== "/cambiar-password") {
     const { data: perfil } = await supabase
       .from("perfiles")

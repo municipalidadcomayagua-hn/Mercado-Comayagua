@@ -1,7 +1,7 @@
 -- Fase 4: creacion automatica de perfil al registrarse (equivalente al
 -- fallback "basic user" del AuthProvider original, ver MIGRATION_NOTES.md
--- seccion 8.2) + columna para forzar cambio de contrasena en usuarios
--- migrados + helper de rol para RLS (Fase 6).
+-- seccion 8.2) + columna para forzar cambio de contrasena cuando un admin
+-- crea una cuenta con contrasena temporal + helper de rol para RLS (Fase 6).
 
 alter table public.perfiles
   add column debe_cambiar_password boolean not null default false;

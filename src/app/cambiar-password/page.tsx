@@ -20,8 +20,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 // Pantalla nueva (no existia en el original): cierra el flujo de
-// contrasena temporal para usuarios migrados desde Firebase (Fase 4,
-// ver scripts/migrate-users.ts y MIGRATION_NOTES.md).
+// contrasena temporal cuando un administrador crea una cuenta nueva
+// (ver MIGRATION_NOTES.md, Fase 4).
 export default function CambiarPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -86,7 +86,7 @@ export default function CambiarPasswordPage() {
               Establecer nueva contraseña
             </Heading>
             <Text mt={2} color="gray.600" fontSize="sm">
-              Tu cuenta fue migrada con una contraseña temporal. Elegí una nueva
+              Tu cuenta fue creada con una contraseña temporal. Elegí una nueva
               contraseña para continuar.
             </Text>
           </Box>
