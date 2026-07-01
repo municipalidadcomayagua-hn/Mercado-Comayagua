@@ -1,0 +1,40 @@
+{
+  "name": "Sistema de Cobros Municipal",
+  "short_name": "Tarjeta de Cobro Municipal",
+  "description": "Sistema de gestión de cobros para ambulantes municipales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["business", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/Logo%20Comayagua.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Logo%20Comayagua.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/Logo%20Comayagua.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Logo%20Comayagua.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
