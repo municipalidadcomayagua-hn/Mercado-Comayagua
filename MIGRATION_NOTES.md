@@ -371,3 +371,19 @@ Estos son comportamientos/bugs reales del sistema actual. Se preservan en la mig
 - Confirmar el mapeo de nombres de tablas (§3, ya acordado con el usuario: renombrar para claridad, ej. `ambulantes`→`cobradores`).
 - Confirmar tratamiento del hallazgo §8.2 (fallback de rol por defecto) — se adopta la recomendación (trigger con rol `ambulante` por defecto) salvo objeción.
 - Confirmar que `Register.tsx` y `AuditTool.tsx` **no se portan** (§8.4, §8.5) salvo que el usuario indique lo contrario.
+
+---
+
+## 10. Fase 4 — Auth y roles (estado)
+
+### Implementado y verificado
+- Migración `0002_trigger_perfiles.sql`: trigger `handle_new_user` (crea fila en `perfiles` con `rol='ambulante'` por defecto al insertarse en `auth.users` — reproduce el fallback "basic user" del original, ver §8.2), columna `perfiles.debe_cambiar_password`, helper `es_admin()` para RLS (Fase 6).
+- `src/lib/auth/AuthProvider.tsx`: puerto de `AuthProvider.tsx` original a Supabase Auth. Resuelve `mercadoNombre` con el mismo fallback (perfil → `cobradores.mercado_id` si falta). La rama "buscar por email" del original ya no aplica: `cobradores.user_id` es FK `NOT NULL UNIQUE`, así que el enlace siempre existe tras la migración (simplificación posible gracias al esquema relacional, mismo resultado, no un cambio de lógica).
+- `src/app/login/page.tsx`: puerto verbatim de `Login.tsx` (mismo layout, mismo copy).
+- `src/lib/auth/errors.ts`: mapeo de errores. **Diferencia de plataforma no corregible**: Supabase fusiona "contraseña incorrecta" y "usuario no existe" en un único error `invalid_credentials` (protección anti-enumeración de usuarios). El original distinguía ambos casos con Firebase. Se documenta aquí, no es un bug de esta migración.
+- `src/app/cambiar-password/page.tsx` (pantalla nueva, no existía en el original): fuerza a los usuarios migrados con contraseña temporal a definir una nueva antes de usar el sistema. Gateado en `src/lib/supabase/middleware.ts` vía `perfiles.debe_cambiar_password`.
+- `scripts/migrate-users.ts`: migra usuarios de Firebase Auth + rol de Firestore `usuarios` a Supabase Auth (`auth.admin.createUser` con contraseña temporal, `debe_cambiar_password=true`). Genera `scripts/output/uid-map.json` (reutilizado en Fase 7) y `usuarios-migrados.json` (contraseñas temporales — entregar de forma segura y borrar después). **No migra datos de negocio** (mercados/cobradores/etc.), eso es la Fase 7.
+- Verificado end-to-end contra el proyecto Supabase real con un usuario de prueba desechable (creado y luego borrado): el trigger crea el perfil correctamente, el login con contraseña funciona contra el endpoint real de Supabase Auth, y el borrado del usuario de Auth elimina en cascada su perfil.
+
+### Pendiente
+- **Ejecutar `scripts/migrate-users.ts` contra los usuarios reales** requiere: (1) un Service Account de Firebase del proyecto `mercado-app-2` en `scripts/firebase-service-account.json` (no lo tengo — la carpeta `firebase-credentials/` del Desktop es de otro proyecto, `tomaturno`), y (2) confirmación explícita del usuario antes de correrlo, porque crea cuentas reales y genera contraseñas temporales que hay que distribuir a personas reales.

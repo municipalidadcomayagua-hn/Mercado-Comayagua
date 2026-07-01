@@ -57,5 +57,22 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Fuerza el cambio de contrasena temporal para usuarios migrados desde
+  // Firebase (Fase 4, ver scripts/migrate-users.ts) antes de dejarlos usar
+  // el resto del sistema.
+  if (user && pathname !== "/cambiar-password") {
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("debe_cambiar_password")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (perfil?.debe_cambiar_password) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/cambiar-password";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }

@@ -661,6 +661,7 @@ export type Database = {
         Row: {
           activo: boolean
           created_at: string
+          debe_cambiar_password: boolean
           email: string
           id: string
           mercado_id: string | null
@@ -671,6 +672,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           created_at?: string
+          debe_cambiar_password?: boolean
           email: string
           id: string
           mercado_id?: string | null
@@ -681,6 +683,7 @@ export type Database = {
         Update: {
           activo?: boolean
           created_at?: string
+          debe_cambiar_password?: boolean
           email?: string
           id?: string
           mercado_id?: string | null
@@ -821,6 +824,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      es_admin: { Args: never; Returns: boolean }
       siguiente_numero_recibo: {
         Args: { p_mercado_id: string }
         Returns: number
