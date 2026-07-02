@@ -4,10 +4,10 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  Container,
   FormControl,
   FormLabel,
   Heading,
+  Icon,
   Input,
   VStack,
   Text,
@@ -15,9 +15,13 @@ import {
   Alert,
   AlertIcon,
 } from "@chakra-ui/react";
+import { motion } from "framer-motion";
+import { KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
+
+const MotionBox = motion(Box);
 
 // Pantalla nueva (no existia en el original): cierra el flujo de
 // contrasena temporal cuando un administrador crea una cuenta nueva
@@ -78,53 +82,101 @@ export default function CambiarPasswordPage() {
   };
 
   return (
-    <Box minH="100vh" bg="gray.50" display="flex" alignItems="center" justifyContent="center" px={4} py={8}>
-      <Container maxW="md" w="100%" centerContent>
-        <VStack spacing={6} w="full" maxW="400px">
-          <Box textAlign="center">
-            <Heading size="lg" color="blue.600">
-              Establecer nueva contraseña
+    <Box
+      minH="100dvh"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      px={4}
+      py={8}
+      bgGradient="linear(to-br, blue.50, gray.50 45%, blue.50)"
+    >
+      <MotionBox
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        w="full"
+        maxW="400px"
+      >
+        <VStack spacing={6} w="full">
+          <VStack spacing={3} textAlign="center">
+            <Box
+              boxSize="64px"
+              borderRadius="full"
+              bg="blue.50"
+              border="4px solid"
+              borderColor="blue.100"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Icon as={KeyRound} boxSize={6} color="blue.600" />
+            </Box>
+            <Heading size="lg" color="gray.800" fontWeight="800">
+              Nueva contraseña
             </Heading>
-            <Text mt={2} color="gray.600" fontSize="sm">
+            <Text color="gray.500" fontSize="sm" maxW="320px">
               Tu cuenta fue creada con una contraseña temporal. Elegí una nueva
-              contraseña para continuar.
+              para continuar.
             </Text>
-          </Box>
+          </VStack>
 
-          <Box w="full" p={6} borderWidth={1} borderRadius="lg" boxShadow="lg" bg="white">
+          <Box
+            w="full"
+            p={{ base: 6, md: 8 }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            bg="white"
+            border="1px solid"
+            borderColor="gray.100"
+          >
             <form onSubmit={handleSubmit}>
-              <VStack spacing={4}>
+              <VStack spacing={5}>
                 {error && (
-                  <Alert status="error" borderRadius="md" fontSize="sm">
+                  <Alert status="error" borderRadius="lg" fontSize="sm">
                     <AlertIcon />
                     {error}
                   </Alert>
                 )}
 
                 <FormControl isRequired>
-                  <FormLabel>Nueva contraseña</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="600" color="gray.700">
+                    Nueva contraseña
+                  </FormLabel>
                   <Input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
+                    size="lg"
+                    bg="gray.50"
+                    borderColor="gray.200"
                   />
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Confirmar contraseña</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="600" color="gray.700">
+                    Confirmar contraseña
+                  </FormLabel>
                   <Input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repite la contraseña"
+                    size="lg"
+                    bg="gray.50"
+                    borderColor="gray.200"
                   />
                 </FormControl>
 
                 <Button
                   type="submit"
                   colorScheme="blue"
+                  size="lg"
                   w="full"
+                  h="52px"
+                  borderRadius="xl"
+                  boxShadow="md"
                   isLoading={loading}
                   loadingText="Guardando..."
                 >
@@ -134,7 +186,7 @@ export default function CambiarPasswordPage() {
             </form>
           </Box>
         </VStack>
-      </Container>
+      </MotionBox>
     </Box>
   );
 }

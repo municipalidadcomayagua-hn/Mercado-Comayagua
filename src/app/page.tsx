@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { LoadingScreen } from "@/components/layout/LoadingScreen";
 
 // Puerto de getDefaultRoute() (App.tsx original).
 export default function Home() {
@@ -22,5 +23,5 @@ export default function Home() {
     }
   }, [loading, user, isAdmin, isAmbulante, router]);
 
-  return <div>Cargando...</div>;
+  return <LoadingScreen />;
 }

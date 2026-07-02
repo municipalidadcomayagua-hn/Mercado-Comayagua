@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  Container,
   FormControl,
   FormLabel,
   Heading,
@@ -15,9 +14,13 @@ import {
   Alert,
   AlertIcon,
   Image,
+  Divider,
 } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
+
+const MotionBox = motion(Box);
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -54,102 +57,114 @@ export default function LoginPage() {
 
   return (
     <Box
-      minH={{ base: "100dvh", md: "100vh" }}
-      bg="gray.50"
+      minH="100dvh"
       display="flex"
       alignItems="center"
       justifyContent="center"
-      px={{ base: 3, sm: 4, md: 6 }}
-      py={{ base: 6, sm: 8, md: 12 }}
-      pb="max(1.5rem, env(safe-area-inset-bottom))"
+      px={{ base: 4, md: 6 }}
+      py={{ base: 8, md: 12 }}
+      bgGradient="linear(to-br, blue.50, gray.50 45%, blue.50)"
     >
-      <Container
-        maxW="md"
-        w="100%"
-        px={{ base: 4, sm: 6, md: 8 }}
-        py={{ base: 4, md: 12 }}
-        centerContent
+      <MotionBox
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        w="full"
+        maxW="420px"
       >
-        <VStack spacing={8} w="full" maxW="400px">
-          <Box
-            textAlign="center"
-            py={{ base: 2, md: 4 }}
-            borderBottom="2px solid"
-            borderColor="blue.500"
-            w="full"
-            mb={2}
-          >
-            <Image
-              src="/ESCUDOMPAL.bmp"
-              alt="Logo institucional"
-              boxSize={{ base: "64px", md: "80px" }}
-              objectFit="contain"
-              mx="auto"
-              mb={3}
+        <VStack spacing={7} w="full">
+          <VStack spacing={3} textAlign="center">
+            <Box
+              boxSize="76px"
               borderRadius="full"
               bg="white"
-              boxShadow="md"
-              p={1}
-            />
-            <Heading
-              size={{ base: "lg", md: "xl", lg: "2xl" }}
-              color="blue.600"
-              mb={2}
-              fontWeight="bold"
+              boxShadow="lg"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              border="4px solid"
+              borderColor="blue.100"
+              p={1.5}
             >
-              Municipalidad de Comayagua
-            </Heading>
-            <Text fontSize={{ base: "sm", md: "md", lg: "lg" }} color="gray.700" mb={3}>
-              Mercado Municipal San Antonio
-            </Text>
-            <Heading
-              size={{ base: "md", md: "lg", lg: "xl" }}
-              color="blue.800"
-              fontWeight="bold"
-              fontFamily="serif"
-            >
-              Tarjeta de Cobro
-            </Heading>
-          </Box>
+              <Image
+                src="/ESCUDOMPAL.bmp"
+                alt="Logo institucional"
+                boxSize="100%"
+                objectFit="contain"
+                borderRadius="full"
+              />
+            </Box>
+            <VStack spacing={0.5}>
+              <Text fontSize="xs" fontWeight="700" color="blue.600" letterSpacing="0.08em" textTransform="uppercase">
+                Municipalidad de Comayagua
+              </Text>
+              <Heading size="lg" color="gray.800" fontWeight="800">
+                Mercado Municipal San Antonio
+              </Heading>
+              <Text fontSize="sm" color="gray.500">
+                Sistema de Tarjeta de Cobro
+              </Text>
+            </VStack>
+          </VStack>
 
-          <Box w="full" p={{ base: 6, md: 8 }} borderWidth={1} borderRadius="lg" boxShadow="lg" bg="white">
+          <Box
+            w="full"
+            p={{ base: 6, md: 8 }}
+            borderRadius="2xl"
+            boxShadow="xl"
+            bg="white"
+            border="1px solid"
+            borderColor="gray.100"
+          >
             <form onSubmit={handleSubmit}>
-              <VStack spacing={6}>
+              <VStack spacing={5}>
                 {error && (
-                  <Alert status="error" borderRadius="md" fontSize={{ base: "sm", md: "md" }}>
+                  <Alert status="error" borderRadius="lg" fontSize="sm">
                     <AlertIcon />
                     {error}
                   </Alert>
                 )}
 
                 <FormControl isRequired>
-                  <FormLabel fontSize={{ base: "sm", md: "md" }}>Correo</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="600" color="gray.700">
+                    Correo
+                  </FormLabel>
                   <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="ejemplo@mercado.com"
-                    size={{ base: "md", md: "lg" }}
+                    size="lg"
+                    bg="gray.50"
+                    borderColor="gray.200"
+                    _hover={{ borderColor: "gray.300" }}
                   />
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel fontSize={{ base: "sm", md: "md" }}>Contraseña</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="600" color="gray.700">
+                    Contraseña
+                  </FormLabel>
                   <Input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Ingrese su contraseña"
-                    size={{ base: "md", md: "lg" }}
+                    size="lg"
+                    bg="gray.50"
+                    borderColor="gray.200"
+                    _hover={{ borderColor: "gray.300" }}
                   />
                 </FormControl>
 
                 <Button
                   type="submit"
                   colorScheme="blue"
-                  size={{ base: "md", md: "lg" }}
+                  size="lg"
                   w="full"
-                  h={{ base: "44px", md: "50px" }}
+                  h="52px"
+                  borderRadius="xl"
+                  boxShadow="md"
                   isLoading={loading}
                   loadingText="Iniciando..."
                 >
@@ -158,8 +173,13 @@ export default function LoginPage() {
               </VStack>
             </form>
           </Box>
+
+          <Divider />
+          <Text fontSize="xs" color="gray.400" textAlign="center">
+            Acceso restringido al personal autorizado de la Municipalidad de Comayagua.
+          </Text>
         </VStack>
-      </Container>
+      </MotionBox>
     </Box>
   );
 }

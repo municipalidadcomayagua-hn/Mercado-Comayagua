@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LayoutDashboard, Users, Store, ListOrdered, FileText, Calendar } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
+import { LoadingScreen } from "@/components/layout/LoadingScreen";
 
 // Puerto de AdminLayout.tsx + AdminRoute (App.tsx) del original.
 // /ambulantes -> /cobradores (ver mapa de nombres, MIGRATION_NOTES.md seccion "Naming").
@@ -38,7 +39,7 @@ export default function AdminGroupLayout({ children }: { children: React.ReactNo
   }, [loading, user, isAdmin, router]);
 
   if (loading || !user || !isAdmin) {
-    return <div>Cargando...</div>;
+    return <LoadingScreen />;
   }
 
   return (

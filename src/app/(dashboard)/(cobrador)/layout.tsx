@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Home, MapPin, Receipt, CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
+import { LoadingScreen } from "@/components/layout/LoadingScreen";
 
 // Puerto de AmbulanteLayout.tsx + ProtectedRoute (App.tsx) del original.
 const NAV_ITEMS: NavItem[] = [
@@ -27,7 +28,7 @@ export default function CobradorGroupLayout({ children }: { children: React.Reac
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div>Cargando...</div>;
+    return <LoadingScreen />;
   }
 
   return (
