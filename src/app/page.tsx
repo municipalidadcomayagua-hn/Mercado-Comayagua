@@ -1,18 +1,26 @@
-import { Box, Heading, Text } from "@chakra-ui/react";
+"use client";
 
-// Placeholder temporal: la redireccion real por rol (getDefaultRoute) se
-// implementa en middleware.ts (Fase 3) + auth (Fase 4).
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthProvider";
+
+// Puerto de getDefaultRoute() (App.tsx original).
 export default function Home() {
-  return (
-    <Box minH="100vh" display="flex" alignItems="center" justifyContent="center">
-      <Box textAlign="center">
-        <Heading size="lg" color="blue.600">
-          Municipalidad de Comayagua
-        </Heading>
-        <Text mt={2} color="gray.600">
-          Mercado Municipal San Antonio — Sistema de Cobro
-        </Text>
-      </Box>
-    </Box>
-  );
+  const { user, loading, isAdmin, isAmbulante } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+    } else if (isAdmin) {
+      router.replace("/dashboard");
+    } else if (isAmbulante) {
+      router.replace("/cobro-ambulante");
+    } else {
+      router.replace("/login");
+    }
+  }, [loading, user, isAdmin, isAmbulante, router]);
+
+  return <div>Cargando...</div>;
 }
