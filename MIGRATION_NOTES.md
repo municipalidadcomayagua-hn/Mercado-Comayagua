@@ -389,3 +389,27 @@ El usuario decidió que el sistema nuevo **arranca completamente vacío**: no se
 - El script `scripts/migrate-users.ts` que se había escrito para este fin — **se eliminó** (código muerto sin este alcance). La infraestructura que sí sigue vigente (trigger `handle_new_user`, `debe_cambiar_password`, `/cambiar-password`) se mantiene porque es útil de forma general para cualquier cuenta que un admin cree con contraseña temporal, no solo para una migración.
 - La **Fase 7 completa** (migración de datos Firestore → Postgres) queda fuera del plan. El usuario cargará mercados, cobradores, puestos, etc. manualmente desde las pantallas de administración una vez existan (Fase 5).
 - Las secciones 3, 6 y 7 de este documento (mapeo de colecciones, cálculos de negocio, cálculos a portar) siguen siendo la referencia de **qué construir** en las pantallas y repositorios de la Fase 5 (la lógica de negocio se porta igual, solo que sin datos históricos que migrar).
+
+---
+
+## 11. Fase 5 — Repositorios de datos (estado, parte 1 y 2)
+
+### Repositorios completados y verificados
+`src/lib/data/repositories/{mercados,rubros,perfiles,cobradores,puestos,cobros,cuentas,mora,cierre-anual}.repo.ts` + `folio.repo.ts` (RPC de folio) — puerto 1:1 de los 8 servicios originales (`mercadosService`, `rubrosService`, `ambulantesService`, `puestosService`, `cobrosService`, `cuentasPorCobrarService`, `deudasMoraService`, `cierreAnualService`) + `eliminarLocatarioService`. Todos con `npm run build` limpio y verificados con pruebas reales contra la base (RPC de folio global y por mercado, creación de puesto/cobro/cuenta con datos desechables, luego borrados).
+
+### Patron admin/Server Actions (nuevo, necesario por la plataforma)
+`src/lib/supabase/admin.ts` (cliente `service_role`, protegido con el paquete `server-only`) + `src/lib/auth/require-admin.ts` + `src/app/actions/cobradores.ts`: crear un cobrador requiere crear un usuario de Supabase Auth, lo cual **no puede hacerse desde el cliente** (a diferencia del original, que usaba `createUserWithEmailAndPassword` del navegador — con el efecto secundario de hijackear la sesión del admin, por eso `Register.tsx` original hacía `signOut()` después). Se reemplaza por una Server Action que corre server-side con `service_role`, sin tocar la sesión de quien la invoca, con rollback del usuario de Auth si un paso posterior falla.
+
+### Simplificaciones de plataforma (documentadas, no cambian ningún resultado)
+- **Filtros "en memoria para evitar índice compuesto"**: el original tenía este patrón en varias funciones (`getAmbulantesActivos`, `getCobrosDelDia/Mes`, `getCobrosPorRangoFechas`, etc.) porque Firestore requiere índices compuestos explícitos para filtrar por múltiples campos. Postgres no tiene esa limitación; esos filtros se hacen directo en la consulta SQL. Mismo resultado, sin el workaround.
+- **Folio (`numeroRecibo`)**: ya no se calcula leyendo el máximo de 2-3 colecciones (`cobros`/`abonos`/`abonosMora`) cada vez; se usa el RPC atómico `siguiente_numero_recibo` (Fase 1). Mismo resultado de negocio, sin la condición de carrera del original (ver sección 6.C y 8.1).
+- **Lotes de 500 (`writeBatch`)** en `cierreAnualService.ejecutarCierreAnual`: era el límite de Firestore para escrituras en batch. Postgres no lo tiene; el marcado final de cobros pendientes se hace con un solo `UPDATE ... WHERE`, mismo resultado.
+
+### Hallazgo de código muerto (documentado, no es un cambio de lógica)
+`cuentasPorCobrarService.actualizarCuentaDesdeCobro` del original tenía un `if (cobro.esCobroDiario === true) return;` seguido, más abajo, de un branch `if (cobro.esCobroDiario && cobro.pagosDiarios?.length) { ... }` que **nunca podía ejecutarse** (la función ya había retornado antes de llegar ahí). El comportamiento observable siempre fue "los cobros diarios no afectan `cuentas_por_cobrar`" (así lo dice el propio comentario del código original). Se omitió el branch inalcanzable en el puerto (`cuentas.repo.ts`) porque eliminar código genuinamente muerto no cambia ningún resultado — no es una corrección de lógica de negocio.
+
+### `ambulanteId` vs `cobradorId` en `Abono` (verificado, no es una simplificación arriesgada)
+El tipo `Abono` original tenía dos campos separados, `ambulanteId` (dueño de la cuenta) y `cobradorId` (quien registra el abono). Se unificaron en una sola columna `cobrador_id` (ver mapeo, sección 3.7). Antes de asumir que esto era seguro, se verificaron **los dos únicos call-sites** de `registrarAbono` en el código original (`CobroAmbulante.tsx` y `EstadoDeCuentaCobrador.tsx`): ambos pasan siempre el mismo valor (`user.uid`) para ambos parámetros. La unificación es segura.
+
+### Pendiente en Fase 5
+Pantallas de App Router (login ya portado en Fase 4; falta: registro de cobro/puestos-locatarios del cobrador, reportes/dashboard admin, y las pantallas de administración), componentes de recibo/impresión térmica, y la conexión de TanStack Query sobre estos repositorios.
