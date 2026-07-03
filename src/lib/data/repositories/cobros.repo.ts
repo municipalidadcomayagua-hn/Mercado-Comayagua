@@ -256,7 +256,8 @@ export async function getCobrosPorAmbulante(cobradorId: string): Promise<Cobro[]
   return data;
 }
 
-export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date): Promise<Cobro[]> {
+/** Incluye pagos_diarios: PagosDiarios.tsx necesita el detalle por puesto para reconstruir el estado guardado. */
+export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date): Promise<CobroConDetalle[]> {
   const inicioDia = new Date(fecha);
   inicioDia.setHours(0, 0, 0, 0);
   const finDia = new Date(fecha);
@@ -265,13 +266,13 @@ export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date):
   const supabase = createClient();
   const { data, error } = await supabase
     .from("cobros")
-    .select("*")
+    .select(SELECT_CON_DETALLE)
     .eq("cobrador_id", cobradorId)
     .eq("es_cobro_diario", true)
     .gte("fecha_cobro_dia", inicioDia.toISOString())
     .lte("fecha_cobro_dia", finDia.toISOString());
   if (error) throw error;
-  return data;
+  return data as unknown as CobroConDetalle[];
 }
 
 /** Anula todos los cobros mensuales activos de un puesto (al desactivar locatario). */
