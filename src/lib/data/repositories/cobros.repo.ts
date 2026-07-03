@@ -245,6 +245,18 @@ export async function getCobrosPorRangoFechas(desde: Date, hasta: Date): Promise
   return data;
 }
 
+/** Variante con pagos_adicionales/abonos_concepto: para pantallas que calculan rubros pendientes por mes (ej. EstadoDeCuentaCobrador). */
+export async function getCobrosPorAmbulanteConDetalle(cobradorId: string): Promise<CobroConDetalle[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("cobros")
+    .select(SELECT_CON_DETALLE)
+    .eq("cobrador_id", cobradorId)
+    .order("fecha_cobro", { ascending: false });
+  if (error) throw error;
+  return data as unknown as CobroConDetalle[];
+}
+
 export async function getCobrosPorAmbulante(cobradorId: string): Promise<Cobro[]> {
   const supabase = createClient();
   const { data, error } = await supabase
