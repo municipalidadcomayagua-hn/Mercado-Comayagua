@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Box, Button, Card, CardBody, Modal, ModalBody, ModalContent, ModalOverlay, Spinner, Text, VStack, HStack, useDisclosure } from "@chakra-ui/react";
+import { Box, Button, Card, CardBody, Heading, Modal, ModalBody, ModalContent, ModalOverlay, Spinner, Text, VStack, HStack, useDisclosure } from "@chakra-ui/react";
 import { MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -519,12 +519,15 @@ export default function PagosMensualesPage() {
   return (
     <VStack spacing={{ base: 6, md: 8 }} align="stretch">
       <Box>
+        <Heading size={{ base: "md", sm: "lg" }} fontWeight="700" color="gray.800">
+          Cobros mensuales
+        </Heading>
+        <Text color="gray.500" fontSize={{ base: "xs", sm: "sm" }} mt={1} mb={3}>
+          Edite rubros por mes y genere el recibo. Los locatarios y su distribución en 12 meses se registran en Locatarios.
+        </Text>
         <Button size="sm" colorScheme="teal" variant="outline" leftIcon={<MapPin size={16} />} onClick={() => router.push("/cobro-ambulante/espacios")}>
           Ir a Locatarios
         </Button>
-        <Text fontSize="sm" color="gray.500" mt={2}>
-          En Locatarios registre el locatario, rubros y distribúyalos en 12 meses. Aquí solo se editan rubros por mes y se genera el recibo.
-        </Text>
       </Box>
 
       <VStack spacing={6} align="stretch">
@@ -557,7 +560,7 @@ export default function PagosMensualesPage() {
       </VStack>
 
       {puestos.length > 0 && (
-        <Card bg="orange.50" borderWidth="2px" borderColor="orange.300">
+        <Card bg="orange.50" borderWidth="1px" borderColor="orange.200" borderRadius="2xl" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
           <CardBody>
             <HStack justify="center">
               <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold">
@@ -572,7 +575,7 @@ export default function PagosMensualesPage() {
       )}
 
       {loadingPuestos && (
-        <Card>
+        <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
           <CardBody>
             <Box textAlign="center" py={8}>
               <Spinner size="xl" color="blue.500" />
@@ -585,7 +588,7 @@ export default function PagosMensualesPage() {
       )}
 
       {!loadingPuestos && puestos.length === 0 && (
-        <Card>
+        <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
           <CardBody>
             <Text textAlign="center" color="gray.500" py={8}>
               No hay locatarios. Registre primero en &quot;Locatarios&quot; y luego vuelva aquí para registrar los cobros mensuales.

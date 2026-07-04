@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
+  Box,
   Card,
   CardBody,
   Heading,
@@ -243,7 +244,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
 
   if (loading) {
     return (
-      <Card>
+      <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
         <CardBody>
           <HStack justify="center" py={8}>
             <Spinner size="lg" />
@@ -255,8 +256,17 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
   }
 
   return (
-    <VStack spacing={6} align="stretch">
-      <Card>
+    <VStack spacing={{ base: 6, md: 8 }} align="stretch">
+      <Box>
+        <Heading size={{ base: "md", sm: "lg" }} fontWeight="700" color="gray.800">
+          Estado de cuenta
+        </Heading>
+        <Text color="gray.500" fontSize={{ base: "xs", sm: "sm" }} mt={1}>
+          Resumen de cobros y saldos pendientes por cliente. Registre abonos parciales o por mes completo.
+        </Text>
+      </Box>
+
+      <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
         <CardBody>
           <Heading size="md" mb={2}>
             Resumen del cobrador
@@ -277,7 +287,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
         </CardBody>
       </Card>
 
-      <Card>
+      <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
         <CardBody>
           <Heading size="md" mb={4}>
             Estado de cuenta por cliente
@@ -285,46 +295,96 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
           {cuentas.length === 0 ? (
             <Text color="gray.500">No hay cuentas por cobrar. Los cobros mensuales se irán reflejando aquí.</Text>
           ) : (
-            <TableContainer overflowX="auto" maxW="100%" sx={{ WebkitOverflowScrolling: "touch" }}>
-              <Table size="sm" minW="640px">
-                <Thead>
-                  <Tr>
-                    <Th>Puesto</Th>
-                    <Th>Cliente</Th>
-                    <Th>Última fecha cobro</Th>
-                    <Th isNumeric>Total cobrado</Th>
-                    <Th isNumeric>Abonado</Th>
-                    <Th isNumeric>Saldo pendiente</Th>
-                    <Th>Estado</Th>
-                    <Th></Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {cuentas.map((c) => (
-                    <Tr key={c.id}>
-                      <Td fontWeight="medium">{c.numero_puesto}</Td>
-                      <Td>{c.nombre_cliente || "-"}</Td>
-                      <Td>{c.ultima_fecha_cobro ? new Date(c.ultima_fecha_cobro).toLocaleDateString("es-HN") : "-"}</Td>
-                      <Td isNumeric>{formatCurrency(c.monto_total)}</Td>
-                      <Td isNumeric>{formatCurrency(c.total_abonado)}</Td>
-                      <Td isNumeric fontWeight="bold">
-                        {formatCurrency(c.saldo_pendiente)}
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={c.saldo_pendiente <= 0 ? "green" : "orange"}>{c.saldo_pendiente <= 0 ? "Pagado" : "Pendiente de cobro"}</Badge>
-                      </Td>
-                      <Td>
-                        {c.saldo_pendiente > 0 && (
-                          <Button size="xs" colorScheme="teal" leftIcon={<Plus size={14} />} onClick={() => abrirModalAbono(c)}>
-                            Registrar abono
-                          </Button>
-                        )}
-                      </Td>
+            <>
+              <TableContainer overflowX="auto" maxW="100%" display={{ base: "none", lg: "block" }} sx={{ WebkitOverflowScrolling: "touch" }}>
+                <Table size="sm" minW="640px">
+                  <Thead>
+                    <Tr>
+                      <Th>Puesto</Th>
+                      <Th>Cliente</Th>
+                      <Th>Última fecha cobro</Th>
+                      <Th isNumeric>Total cobrado</Th>
+                      <Th isNumeric>Abonado</Th>
+                      <Th isNumeric>Saldo pendiente</Th>
+                      <Th>Estado</Th>
+                      <Th></Th>
                     </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
+                  </Thead>
+                  <Tbody>
+                    {cuentas.map((c) => (
+                      <Tr key={c.id}>
+                        <Td fontWeight="medium">{c.numero_puesto}</Td>
+                        <Td>{c.nombre_cliente || "-"}</Td>
+                        <Td>{c.ultima_fecha_cobro ? new Date(c.ultima_fecha_cobro).toLocaleDateString("es-HN") : "-"}</Td>
+                        <Td isNumeric>{formatCurrency(c.monto_total)}</Td>
+                        <Td isNumeric>{formatCurrency(c.total_abonado)}</Td>
+                        <Td isNumeric fontWeight="bold">
+                          {formatCurrency(c.saldo_pendiente)}
+                        </Td>
+                        <Td>
+                          <Badge colorScheme={c.saldo_pendiente <= 0 ? "green" : "orange"}>{c.saldo_pendiente <= 0 ? "Pagado" : "Pendiente de cobro"}</Badge>
+                        </Td>
+                        <Td>
+                          {c.saldo_pendiente > 0 && (
+                            <Button size="xs" colorScheme="teal" leftIcon={<Plus size={14} />} onClick={() => abrirModalAbono(c)}>
+                              Registrar abono
+                            </Button>
+                          )}
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+
+              <VStack spacing={3} align="stretch" display={{ base: "flex", lg: "none" }}>
+                {cuentas.map((c) => (
+                  <Box key={c.id} p={4} borderRadius="lg" borderWidth="1px" borderColor="gray.100">
+                    <HStack justify="space-between" align="flex-start">
+                      <Box minW={0}>
+                        <Text fontWeight="bold" fontSize="md">
+                          Puesto {c.numero_puesto}
+                        </Text>
+                        <Text fontSize="sm" color="gray.600" noOfLines={1}>
+                          {c.nombre_cliente || "Sin nombre"}
+                        </Text>
+                      </Box>
+                      <Badge colorScheme={c.saldo_pendiente <= 0 ? "green" : "orange"} flexShrink={0}>
+                        {c.saldo_pendiente <= 0 ? "Pagado" : "Pendiente"}
+                      </Badge>
+                    </HStack>
+                    <SimpleGrid columns={3} spacing={2} mt={3} fontSize="sm">
+                      <Box>
+                        <Text color="gray.500" fontSize="xs">
+                          Cobrado
+                        </Text>
+                        <Text fontWeight="medium">{formatCurrency(c.monto_total)}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.500" fontSize="xs">
+                          Abonado
+                        </Text>
+                        <Text fontWeight="medium">{formatCurrency(c.total_abonado)}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.500" fontSize="xs">
+                          Saldo
+                        </Text>
+                        <Text fontWeight="bold">{formatCurrency(c.saldo_pendiente)}</Text>
+                      </Box>
+                    </SimpleGrid>
+                    <Text fontSize="xs" color="gray.500" mt={2}>
+                      Última fecha cobro: {c.ultima_fecha_cobro ? new Date(c.ultima_fecha_cobro).toLocaleDateString("es-HN") : "-"}
+                    </Text>
+                    {c.saldo_pendiente > 0 && (
+                      <Button size="sm" colorScheme="teal" leftIcon={<Plus size={14} />} mt={3} w="full" onClick={() => abrirModalAbono(c)}>
+                        Registrar abono
+                      </Button>
+                    )}
+                  </Box>
+                ))}
+              </VStack>
+            </>
           )}
         </CardBody>
       </Card>

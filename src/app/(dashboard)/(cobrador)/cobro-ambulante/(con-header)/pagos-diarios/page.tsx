@@ -371,8 +371,17 @@ export default function PagosDiariosPage() {
   };
 
   return (
-    <VStack spacing={6} align="stretch">
-      <Card>
+    <VStack spacing={{ base: 6, md: 8 }} align="stretch">
+      <Box>
+        <Heading size={{ base: "md", sm: "lg" }} fontWeight="700" color="gray.800">
+          Pagos diarios
+        </Heading>
+        <Text color="gray.500" fontSize={{ base: "xs", sm: "sm" }} mt={1}>
+          Control de cobro diario para los 120 puestos del mercado.
+        </Text>
+      </Box>
+
+      <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
         <CardBody>
           <HStack spacing={4}>
             <FormControl isRequired maxW="300px">
@@ -388,10 +397,12 @@ export default function PagosDiariosPage() {
         </CardBody>
       </Card>
 
-      <Card>
+      <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
         <CardBody>
           <VStack spacing={4} align="stretch">
-            <Heading size={{ base: "sm", md: "md" }}>Control de Cobro Diario - 120 Puestos</Heading>
+            <Heading size={{ base: "sm", md: "md" }} color="gray.700">
+              Control de Cobro Diario - 120 Puestos
+            </Heading>
 
             <FormControl>
               <FormLabel fontSize={{ base: "sm", md: "md" }}>Observaciones (aparecen en el recibo global del día)</FormLabel>

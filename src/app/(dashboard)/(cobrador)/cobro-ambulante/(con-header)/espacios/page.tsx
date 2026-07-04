@@ -752,7 +752,7 @@ export default function EspaciosPage() {
       )}
 
       {!loadingEspacios && espaciosList.length === 0 && !showNewEspacioForm && !editEspacioId && (
-        <Card>
+        <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
           <CardBody>
             <Text color="gray.500" textAlign="center" py={6}>
               No hay locatarios. Use el botón superior para registrar el primero.
