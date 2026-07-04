@@ -430,3 +430,14 @@ El original leía el máximo una sola vez y sumaba un offset local (`ultimoRecib
 
 ### Pendiente en Fase 5
 Pantallas de administración (dashboard, cobradores, mercados, catálogo de rubros, reportes, cierre anual).
+
+---
+
+## 13. Fase 5 — Dashboard admin
+
+Puerto de `Dashboard.tsx` (stats + cuadrícula de módulos), reemplazando el placeholder temporal de Fase 4.
+
+### Se omite "Limpiar base de datos"
+El original tenía un botón que corría `resetDatabaseService.ts` (borrado client-side por `writeBatch` + la Cloud Function `deleteAllUsersExceptAdmin`, ver §4). No se porta ahora: §4 ya documenta que **Fase 8** reemplaza todo ese flujo por una única operación server-side con `service_role` — portar la versión vieja para descartarla después sería trabajo desechable. El resto de la pantalla (stats de `getEstadisticasDelMes`/`getTotalDeudaPendienteSistema`/activos, cuadrícula de módulos) sí es funcionalidad permanente y se portó completa.
+
+Pendiente en Fase 5: Cobradores, Mercados, Catálogo de rubros, Reportes, Cierre anual.
