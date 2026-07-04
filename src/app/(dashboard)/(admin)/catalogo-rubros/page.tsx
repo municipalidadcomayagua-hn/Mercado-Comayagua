@@ -186,39 +186,76 @@ export default function CatalogoRubrosPage() {
               No hay rubros. Agregue al menos uno para usarlos en pagos diarios.
             </Text>
           ) : (
-            <TableContainer overflowX="auto" maxW="100%" sx={{ WebkitOverflowScrolling: "touch" }}>
-              <Table size="sm" minW="480px">
-                <Thead>
-                  <Tr>
-                    <Th>Código</Th>
-                    <Th>Código de cuenta</Th>
-                    <Th>Descripción</Th>
-                    <Th>Tipo</Th>
-                    <Th w="120px">Acciones</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {rubros.map((r) => (
-                    <Tr key={r.id}>
-                      <Td fontWeight="medium">{r.codigo}</Td>
-                      <Td>{r.abreviatura || "—"}</Td>
-                      <Td>{r.concepto}</Td>
-                      <Td>
-                        <Badge colorScheme={(r.tipo_rubro ?? "vigente") === "mora" ? "orange" : "green"} size="sm">
-                          {(r.tipo_rubro ?? "vigente") === "mora" ? "Mora" : "Vigente"}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <HStack spacing={1}>
-                          <IconButton aria-label="Editar" icon={<Edit size={14} />} size="xs" variant="ghost" colorScheme="blue" onClick={() => openEdit(r)} />
-                          <IconButton aria-label="Eliminar" icon={<Trash2 size={14} />} size="xs" variant="ghost" colorScheme="red" onClick={() => setRubroAEliminar(r)} />
-                        </HStack>
-                      </Td>
+            <>
+              <TableContainer overflowX="auto" maxW="100%" display={{ base: "none", md: "block" }} sx={{ WebkitOverflowScrolling: "touch" }}>
+                <Table size="sm" minW="480px">
+                  <Thead>
+                    <Tr>
+                      <Th>Código</Th>
+                      <Th>Código de cuenta</Th>
+                      <Th>Descripción</Th>
+                      <Th>Tipo</Th>
+                      <Th w="120px">Acciones</Th>
                     </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            </TableContainer>
+                  </Thead>
+                  <Tbody>
+                    {rubros.map((r) => (
+                      <Tr key={r.id}>
+                        <Td fontWeight="medium">{r.codigo}</Td>
+                        <Td>{r.abreviatura || "—"}</Td>
+                        <Td>{r.concepto}</Td>
+                        <Td>
+                          <Badge colorScheme={(r.tipo_rubro ?? "vigente") === "mora" ? "orange" : "green"} size="sm">
+                            {(r.tipo_rubro ?? "vigente") === "mora" ? "Mora" : "Vigente"}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <HStack spacing={1}>
+                            <IconButton aria-label="Editar" icon={<Edit size={14} />} size="xs" variant="ghost" colorScheme="blue" onClick={() => openEdit(r)} />
+                            <IconButton aria-label="Eliminar" icon={<Trash2 size={14} />} size="xs" variant="ghost" colorScheme="red" onClick={() => setRubroAEliminar(r)} />
+                          </HStack>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+
+              <VStack spacing={3} align="stretch" display={{ base: "flex", md: "none" }}>
+                {rubros.map((r) => (
+                  <Box key={r.id} p={4} borderRadius="lg" borderWidth="1px" borderColor="gray.100">
+                    <HStack justify="space-between" align="flex-start">
+                      <Box minW={0}>
+                        <HStack spacing={2}>
+                          <Text fontWeight="bold" fontSize="md">
+                            {r.codigo}
+                          </Text>
+                          {r.abreviatura && (
+                            <Text fontSize="xs" color="gray.500">
+                              ({r.abreviatura})
+                            </Text>
+                          )}
+                        </HStack>
+                        <Text fontSize="sm" color="gray.600" noOfLines={2}>
+                          {r.concepto}
+                        </Text>
+                      </Box>
+                      <Badge colorScheme={(r.tipo_rubro ?? "vigente") === "mora" ? "orange" : "green"} flexShrink={0}>
+                        {(r.tipo_rubro ?? "vigente") === "mora" ? "Mora" : "Vigente"}
+                      </Badge>
+                    </HStack>
+                    <HStack spacing={2} pt={3} mt={3} borderTopWidth="1px" borderColor="gray.100">
+                      <Button leftIcon={<Edit size={16} />} size="sm" variant="outline" flex="1" onClick={() => openEdit(r)}>
+                        Editar
+                      </Button>
+                      <Button leftIcon={<Trash2 size={16} />} size="sm" colorScheme="red" variant="outline" flex="1" onClick={() => setRubroAEliminar(r)}>
+                        Eliminar
+                      </Button>
+                    </HStack>
+                  </Box>
+                ))}
+              </VStack>
+            </>
           )}
         </CardBody>
       </Card>

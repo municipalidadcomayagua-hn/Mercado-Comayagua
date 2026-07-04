@@ -173,26 +173,24 @@ export default function MercadosPage() {
           <Box textAlign="center" py={8}>
             <Spinner size="xl" color="blue.500" />
           </Box>
+        ) : filteredMercados.length === 0 ? (
+          <Box textAlign="center" py={8}>
+            <Text color="gray.500">No hay mercados registrados</Text>
+          </Box>
         ) : (
-          <TableContainer overflowX="auto" maxW="100%" sx={{ WebkitOverflowScrolling: "touch" }}>
-            <Table variant="simple" minW="400px">
-              <Thead bg="gray.50">
-                <Tr>
-                  <Th>Código</Th>
-                  <Th>Nombre</Th>
-                  <Th>Estado</Th>
-                  {isAdmin && <Th>Acciones</Th>}
-                </Tr>
-              </Thead>
-              <Tbody>
-                {filteredMercados.length === 0 ? (
+          <>
+            <TableContainer overflowX="auto" maxW="100%" display={{ base: "none", md: "block" }} sx={{ WebkitOverflowScrolling: "touch" }}>
+              <Table variant="simple" minW="400px">
+                <Thead bg="gray.50">
                   <Tr>
-                    <Td colSpan={isAdmin ? 4 : 3} textAlign="center" py={8}>
-                      <Text color="gray.500">No hay mercados registrados</Text>
-                    </Td>
+                    <Th>Código</Th>
+                    <Th>Nombre</Th>
+                    <Th>Estado</Th>
+                    {isAdmin && <Th>Acciones</Th>}
                   </Tr>
-                ) : (
-                  filteredMercados.map((m) => (
+                </Thead>
+                <Tbody>
+                  {filteredMercados.map((m) => (
                     <Tr key={m.id}>
                       <Td fontWeight="medium">{m.codigo || "-"}</Td>
                       <Td>{m.nombre}</Td>
@@ -210,11 +208,41 @@ export default function MercadosPage() {
                         </Td>
                       )}
                     </Tr>
-                  ))
-                )}
-              </Tbody>
-            </Table>
-          </TableContainer>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+
+            <VStack spacing={3} align="stretch" display={{ base: "flex", md: "none" }}>
+              {filteredMercados.map((m) => (
+                <Box key={m.id} p={4} borderRadius="lg" borderWidth="1px" borderColor="gray.100">
+                  <HStack justify="space-between" align="flex-start">
+                    <Box minW={0}>
+                      <Text fontWeight="bold" fontSize="md" noOfLines={1}>
+                        {m.nombre}
+                      </Text>
+                      <Text fontSize="sm" color="gray.500">
+                        {m.codigo || "Sin código"}
+                      </Text>
+                    </Box>
+                    <Badge colorScheme={m.activo ? "green" : "gray"} flexShrink={0}>
+                      {m.activo ? "Activo" : "Inactivo"}
+                    </Badge>
+                  </HStack>
+                  {isAdmin && (
+                    <HStack spacing={2} pt={3} mt={3} borderTopWidth="1px" borderColor="gray.100">
+                      <Button leftIcon={<Edit size={16} />} size="sm" variant="outline" flex="1" onClick={() => handleEditar(m)}>
+                        Editar
+                      </Button>
+                      <Button size="sm" colorScheme="red" variant="outline" flex="1" onClick={() => setMercadoAEliminar(m)}>
+                        Eliminar
+                      </Button>
+                    </HStack>
+                  )}
+                </Box>
+              ))}
+            </VStack>
+          </>
         )}
       </Box>
 
