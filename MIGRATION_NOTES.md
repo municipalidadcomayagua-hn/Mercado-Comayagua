@@ -441,3 +441,21 @@ Puerto de `Dashboard.tsx` (stats + cuadrícula de módulos), reemplazando el pla
 El original tenía un botón que corría `resetDatabaseService.ts` (borrado client-side por `writeBatch` + la Cloud Function `deleteAllUsersExceptAdmin`, ver §4). No se porta ahora: §4 ya documenta que **Fase 8** reemplaza todo ese flujo por una única operación server-side con `service_role` — portar la versión vieja para descartarla después sería trabajo desechable. El resto de la pantalla (stats de `getEstadisticasDelMes`/`getTotalDeudaPendienteSistema`/activos, cuadrícula de módulos) sí es funcionalidad permanente y se portó completa.
 
 Pendiente en Fase 5: Cobradores, Mercados, Catálogo de rubros, Reportes, Cierre anual.
+
+---
+
+## 14. Fase 5 — Pantalla de Cobradores
+
+Puerto de `GestionAmbulantes.tsx` (`/ambulantes` → `/cobradores`): tabla/cards con búsqueda y filtro por estado, modal de ver/crear/editar. La creación llama a la Server Action `crearCobradorAction` (Fase 5 parte 1); la edición usa `updateCobrador` + `updatePerfilMercado` directo desde el cliente.
+
+### No se portan `deleteAmbulante` ni `getUidByEmailFromUsuarios`
+- `deleteAmbulante` se importaba en el original pero **ningún botón lo invoca** (verificado leyendo el archivo completo — solo hay acciones "Ver" y "Editar", no "Eliminar"). Código muerto, no se porta.
+- `getUidByEmailFromUsuarios` era un fallback para cuando `Ambulante.userId` podía faltar. En el esquema nuevo `cobradores.user_id` es `NOT NULL` (siempre se crea junto con el usuario de Auth en `crearCobradorAction`), así que el fallback ya no tiene caso de uso.
+
+### Quirk preservado, no corregido: editar el correo no cambia el login
+Igual que el original (`updateAmbulante` escribía `email` en el doc de Firestore sin tocar Firebase Auth), el formulario de edición permite cambiar el campo "Correo Electrónico" de un cobrador ya creado, y eso solo actualiza `cobradores.email` (el dato de contacto) — **no** cambia el correo con el que ese usuario inicia sesión en Supabase Auth. Se preserva tal cual por ser un puerto 1:1, no una funcionalidad nueva; no se decidió arreglarlo en esta fase.
+
+### Simplificación verificada
+`loadMercados` ya no trae todos los mercados y filtra `.activo` en memoria — llama directo a `getMercadosActivos()`. Mismo resultado (la lista original también filtraba a solo activos antes de usarla), sin el paso intermedio.
+
+Pendiente en Fase 5: Mercados, Catálogo de rubros, Reportes, Cierre anual.
