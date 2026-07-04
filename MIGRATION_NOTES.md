@@ -411,5 +411,22 @@ El usuario decidió que el sistema nuevo **arranca completamente vacío**: no se
 ### `ambulanteId` vs `cobradorId` en `Abono` (verificado, no es una simplificación arriesgada)
 El tipo `Abono` original tenía dos campos separados, `ambulanteId` (dueño de la cuenta) y `cobradorId` (quien registra el abono). Se unificaron en una sola columna `cobrador_id` (ver mapeo, sección 3.7). Antes de asumir que esto era seguro, se verificaron **los dos únicos call-sites** de `registrarAbono` en el código original (`CobroAmbulante.tsx` y `EstadoDeCuentaCobrador.tsx`): ambos pasan siempre el mismo valor (`user.uid`) para ambos parámetros. La unificación es segura.
 
+---
+
+## 12. Fase 5 — Pantallas del cobrador: completas
+
+Las 4 subvistas de `/cobro-ambulante` (espacios, pagos-mensuales, pagos-diarios, estado-cuenta) + el panel central + el encabezado institucional compartido ya están portadas, con `npm run build` limpio en cada checkpoint.
+
+### Hallazgo de código muerto en `CobroAmbulante.tsx` (verificado con grep, no una suposición)
+El original definía `agregarPuesto`, `eliminarPuesto`, `handleGuardarPuesto` (crear un `PuestoLocal` sin guardar y registrarlo desde cero dentro de "Pagos mensuales"), `agregarRubroPlantilla`/`eliminarRubroPlantilla`/`actualizarRubroPlantilla`, `handleDistribuirEn12Meses`/`confirmarDistribuirEn12Meses`, el estado `puestoParaDistribuir`, y el `AlertDialog` "Distribuir rubros en los 12 meses". Se verificó con `grep` sobre el archivo completo que **ningún botón invoca estas funciones** — el flujo real de alta de locatarios ya vive enteramente en "Locatarios" (espacios), que llama a su propia `handleGuardarEspacioYDistribuir`. Estas funciones eran remanentes de una versión anterior de la UI. Se omitieron en el puerto (`pagos-mensuales/page.tsx`); junto con ellas se simplificó `PuestoCard`: la rama `!puesto.guardado` (formulario de alta inicial) también era inalcanzable, porque todos los `PuestoLocal` en esta pantalla se cargan siempre desde `getPuestosPorAmbulante` (`guardado` es invariablemente `true`).
+
+### Componentes nuevos para evitar duplicar el original
+- `FotosUploader.tsx`: consolida los 4 bloques de subida de fotos casi idénticos (documento, permiso, contrato, tarjeta anual) en un componente parametrizado.
+- `PuestoCardMensual.tsx`: el `PuestoCard` memoizado, ahora en su propio archivo (antes vivía inline dentro de `CobroAmbulante.tsx`).
+- Grupo de rutas `(con-header)/`: agrupa las 4 subvistas bajo el layout que muestra el encabezado institucional, que el panel central no muestra.
+
+### Folio de los 12 meses (Locatarios → "Guardar y distribuir")
+El original leía el máximo una sola vez y sumaba un offset local (`ultimoRecibo + 1 + mesIndex`) para los 12 cobros creados en paralelo — con condición de carrera. El puerto llama al RPC atómico `siguiente_numero_recibo` 12 veces **secuencialmente** (no en paralelo) para reservar los 12 números de antemano, y luego crea los 12 cobros en paralelo ya con su número asignado. Mismo resultado en el caso normal (un cobrador guardando un locatario), sin el riesgo de carrera del esquema original.
+
 ### Pendiente en Fase 5
-Pantallas de App Router (login ya portado en Fase 4; falta: registro de cobro/puestos-locatarios del cobrador, reportes/dashboard admin, y las pantallas de administración), componentes de recibo/impresión térmica, y la conexión de TanStack Query sobre estos repositorios.
+Pantallas de administración (dashboard, cobradores, mercados, catálogo de rubros, reportes, cierre anual).
