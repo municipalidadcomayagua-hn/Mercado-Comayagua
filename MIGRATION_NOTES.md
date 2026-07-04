@@ -501,3 +501,15 @@ Puerto de `ReporteResumenCobros.tsx`: filtro por rango de fechas + mercado, agru
 El original ignora el campo `mercadoId` guardado en el propio cobro y en su lugar usa `getUsuariosMercadoMap()` (aquí `getPerfilesMercadoMap()`) para mapear `cobro.cobradorId` → mercado **actual** del cobrador. Se preserva tal cual: si se usara `cobro.mercado_id` directo, un cobrador reasignado de mercado haría que sus cobros históricos aparecieran bajo el mercado viejo en vez del vigente, cambiando el resultado del reporte respecto al original.
 
 Pendiente en Fase 5: Cierre anual.
+
+---
+
+## 18. Fase 5 — Pantalla de Cierre anual (última pantalla de Fase 5)
+
+Puerto de `CierreAnualAdmin.tsx`: selector de año, conteo de cobros pendientes (`getCobrosPendientesParaCierre`), y ejecución del cierre (`ejecutarCierreAnual`, ya portado 1:1 en Fase 5 parte 2) tras confirmar en un `AlertDialog`.
+
+### `leastDestructiveRef={undefined as any}` → `useRef` real
+El original pasaba `undefined as any` para sortear el tipado de Chakra (el botón "Cancelar" no tenía ref). Se reemplaza por un `useRef<HTMLButtonElement>` real apuntando a ese botón — mismo patrón que los demás `AlertDialog` ya portados (espacios, mercados, catálogo de rubros). No cambia el comportamiento, solo evita el `any`.
+
+## Fase 5 completa
+Con esta pantalla quedan portadas las 6 pantallas de administración (Dashboard, Cobradores, Mercados, Catálogo de rubros, Reportes, Cierre anual) y las 4 subvistas del cobrador (Fase 5d). Todo `npm run build` limpio en cada checkpoint. Sigue Fase 6 (políticas RLS de Supabase — ver §7 y §8.2 para las decisiones ya tomadas que las RLS deben reflejar).
