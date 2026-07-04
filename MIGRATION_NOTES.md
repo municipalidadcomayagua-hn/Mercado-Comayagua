@@ -473,3 +473,17 @@ La confirmación antes de eliminar usaba `window.confirm` (nativo del navegador)
 Eliminar un mercado que todavía tiene `cobradores`/`cobros`/etc. con ese `mercado_id` puede fallar por restricción de llave foránea en Postgres (el original, sobre Firestore, no tenía esa restricción y el borrado simplemente huérfaneaba las referencias). El error de Postgres se muestra igual en el toast de error existente; no se agregó manejo especial.
 
 Pendiente en Fase 5: Catálogo de rubros, Reportes, Cierre anual.
+
+---
+
+## 16. Fase 5 — Pantalla de Catálogo de rubros
+
+Puerto de `CatalogoRubrosAdmin.tsx` + `CatalogoRubros.tsx` (CRUD del catálogo global de rubros: código, código de cuenta/abreviatura, descripción, tipo vigente/mora).
+
+### Prop `cobradorId` no portado (rama muerta verificada)
+El componente original `CatalogoRubros` aceptaba un prop `cobradorId` para reutilizarse como catálogo *personal* de un cobrador (fallback a `user?.uid` si no se pasaba el prop). Se verificó con grep el único call-site en todo el código: `CatalogoRubrosAdmin.tsx` lo invoca siempre con `RUBROS_GLOBAL_ID`. La rama "catálogo por cobrador" nunca se ejercita — se porta como pantalla fija sobre el catálogo global (`getRubrosGlobales()` / `createRubro(null, ...)`), sin el prop.
+
+### `window.confirm` → `AlertDialog`
+Mismo reemplazo que en Mercados (§15): la confirmación antes de eliminar un rubro pasa de `window.confirm` al `AlertDialog` de Chakra ya usado en el resto de la app.
+
+Pendiente en Fase 5: Reportes, Cierre anual.
