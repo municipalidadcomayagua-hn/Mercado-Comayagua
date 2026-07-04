@@ -245,6 +245,25 @@ export async function getCobrosPorRangoFechas(desde: Date, hasta: Date): Promise
   return data;
 }
 
+/** Variante con pagos_adicionales/pagos_diarios: para el reporte admin de resumen por rubro (ReporteResumenCobros). */
+export async function getCobrosPorRangoFechasConDetalle(desde: Date, hasta: Date): Promise<CobroConDetalle[]> {
+  const inicio = new Date(desde);
+  inicio.setHours(0, 0, 0, 0);
+  const fin = new Date(hasta);
+  fin.setHours(23, 59, 59, 999);
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("cobros")
+    .select(SELECT_CON_DETALLE)
+    .gte("fecha_cobro", inicio.toISOString())
+    .lte("fecha_cobro", fin.toISOString())
+    .eq("estado", "activo")
+    .order("fecha_cobro", { ascending: false });
+  if (error) throw error;
+  return data as unknown as CobroConDetalle[];
+}
+
 /** Variante con pagos_adicionales/abonos_concepto: para pantallas que calculan rubros pendientes por mes (ej. EstadoDeCuentaCobrador). */
 export async function getCobrosPorAmbulanteConDetalle(cobradorId: string): Promise<CobroConDetalle[]> {
   const supabase = createClient();

@@ -487,3 +487,17 @@ El componente original `CatalogoRubros` aceptaba un prop `cobradorId` para reuti
 Mismo reemplazo que en Mercados (§15): la confirmación antes de eliminar un rubro pasa de `window.confirm` al `AlertDialog` de Chakra ya usado en el resto de la app.
 
 Pendiente en Fase 5: Reportes, Cierre anual.
+
+---
+
+## 17. Fase 5 — Pantalla de Reportes (resumen por rubro y mercado)
+
+Puerto de `ReporteResumenCobros.tsx`: filtro por rango de fechas + mercado, agrupa cobros (mensuales y diarios, solo con recibo generado) por mercado + código de rubro, con fila resumen (cantidad, total) y desglose expandible por cliente/fecha/mes/puesto/recibo.
+
+### Nueva función de repositorio: `getCobrosPorRangoFechasConDetalle`
+`getCobrosPorRangoFechas` (Fase 5 parte 1) devuelve `Cobro[]` sin `pagos_adicionales`/`pagos_diarios`, que este reporte necesita para desglosar por concepto. Se agregó `getCobrosPorRangoFechasConDetalle` en `cobros.repo.ts` (mismo filtro, con `SELECT_CON_DETALLE`) en vez de cambiar el tipo de retorno de la función existente — mismo patrón que `getCobrosPorAmbulante` / `getCobrosPorAmbulanteConDetalle`.
+
+### El mercado se resuelve por el cobrador, no por `cobro.mercado_id` (verificado, no un descuido)
+El original ignora el campo `mercadoId` guardado en el propio cobro y en su lugar usa `getUsuariosMercadoMap()` (aquí `getPerfilesMercadoMap()`) para mapear `cobro.cobradorId` → mercado **actual** del cobrador. Se preserva tal cual: si se usara `cobro.mercado_id` directo, un cobrador reasignado de mercado haría que sus cobros históricos aparecieran bajo el mercado viejo en vez del vigente, cambiando el resultado del reporte respecto al original.
+
+Pendiente en Fase 5: Cierre anual.
