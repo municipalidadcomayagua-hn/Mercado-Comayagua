@@ -459,3 +459,17 @@ Igual que el original (`updateAmbulante` escribía `email` en el doc de Firestor
 `loadMercados` ya no trae todos los mercados y filtra `.activo` en memoria — llama directo a `getMercadosActivos()`. Mismo resultado (la lista original también filtraba a solo activos antes de usarla), sin el paso intermedio.
 
 Pendiente en Fase 5: Mercados, Catálogo de rubros, Reportes, Cierre anual.
+
+---
+
+## 15. Fase 5 — Pantalla de Mercados
+
+Puerto de `GestionMercados.tsx`: CRUD directo (tabla + búsqueda, modal crear/editar, `Switch` para `activo`). Sin cambios de lógica de negocio; usa `getMercados`/`createMercado`/`updateMercado`/`deleteMercado` (ya portados en Fase 5 parte 1).
+
+### `window.confirm` → `AlertDialog`
+La confirmación antes de eliminar usaba `window.confirm` (nativo del navegador). Se reemplaza por el mismo `AlertDialog` de Chakra ya usado para eliminar locatarios en `espacios/page.tsx` — equivalente visual dentro del sistema de diseño, no un cambio de comportamiento (sigue pidiendo confirmación antes de borrar).
+
+### Nota de esquema, no de lógica
+Eliminar un mercado que todavía tiene `cobradores`/`cobros`/etc. con ese `mercado_id` puede fallar por restricción de llave foránea en Postgres (el original, sobre Firestore, no tenía esa restricción y el borrado simplemente huérfaneaba las referencias). El error de Postgres se muestra igual en el toast de error existente; no se agregó manejo especial.
+
+Pendiente en Fase 5: Catálogo de rubros, Reportes, Cierre anual.
