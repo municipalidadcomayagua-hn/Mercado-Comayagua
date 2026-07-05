@@ -372,87 +372,80 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                               <FormLabel fontSize={{ base: "xs", md: "sm" }} mb={0}>
                                 Rubros del mes
                               </FormLabel>
-                              {(estaEditando || (estaGuardado && !estaPagado)) && !tieneAbonosParciales && (
+                              {rubrosCatalogo.length > 0 && (estaEditando || (estaGuardado && !estaPagado)) && !tieneAbonosParciales && (
                                 <Button size="xs" colorScheme="green" leftIcon={<Plus size={14} />} onClick={() => onAgregarRubroMes(puesto.id, mesIndex)}>
                                   Agregar rubro
                                 </Button>
                               )}
                             </HStack>
-                            <VStack spacing={2} align="stretch">
-                              {pagoMes.rubros.map((rubro, rubroIdx) => {
-                                const tieneRubro = !!(rubro.rubroId || rubro.codigo || rubro.concepto);
-                                const rubroCat = rubro.rubroId ? rubrosCatalogo.find((r) => r.id === rubro.rubroId) : undefined;
-                                const codigoDisplay = rubroCat?.codigo ?? rubro.codigo;
-                                const conceptoDisplay = rubroCat?.concepto ?? rubro.concepto;
-                                const puedeEditar = !estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado);
-                                const otrasFilas = (pagoMes.rubros || []).filter((_, i) => i !== rubroIdx);
-                                const rubrosIdsYaUsados = otrasFilas.map((r) => r.rubroId).filter(Boolean);
-                                const codigosYaUsados = otrasFilas.map((r) => (r.rubroId ? rubrosCatalogo.find((c) => c.id === r.rubroId)?.codigo : r.codigo)).filter(Boolean);
-                                const opcionesRubro = rubrosCatalogo.filter((r) => {
-                                  if (r.id === rubro.rubroId) return true;
-                                  if (rubrosIdsYaUsados.includes(r.id)) return false;
-                                  if (r.codigo && codigosYaUsados.includes(r.codigo)) return false;
-                                  return true;
-                                });
-                                return (
-                                  <Box key={`rubro-mes-${puesto.id}-${mesIndex}-${rubroIdx}`} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200">
-                                    {rubrosCatalogo.length > 0 ? (
-                                      <>
-                                        {tieneRubro ? (
-                                          <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" gap={1}>
-                                            <Text fontSize="sm" fontWeight="medium" noOfLines={2}>
-                                              <Box as="span" fontWeight="bold" color="blue.600">
-                                                {codigoDisplay}
-                                              </Box>{" "}
-                                              {conceptoDisplay}
-                                            </Text>
-                                            {puedeEditar && (
-                                              <HStack>
-                                                <Button size="xs" variant="ghost" colorScheme="gray" onClick={() => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", "")}>
-                                                  Cambiar
-                                                </Button>
-                                                <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
-                                              </HStack>
-                                            )}
-                                          </HStack>
-                                        ) : (
-                                          <HStack mb={2} spacing={2}>
-                                            <Select size="sm" placeholder="Seleccionar rubro..." value="" onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", e.target.value)} isDisabled={!puedeEditar}>
-                                              {opcionesRubro.map((r) => (
-                                                <option key={r.id} value={r.id}>
-                                                  {r.concepto}
-                                                </option>
-                                              ))}
-                                            </Select>
-                                            {puedeEditar && (
+                            {rubrosCatalogo.length === 0 ? (
+                              <Text fontSize="xs" color="orange.600" fontStyle="italic">
+                                No hay rubros creados. Configure el catálogo de rubros en Admin. Solo se permiten rubros precargados.
+                              </Text>
+                            ) : (
+                              <VStack spacing={2} align="stretch">
+                                {pagoMes.rubros.map((rubro, rubroIdx) => {
+                                  const tieneRubro = !!(rubro.rubroId || rubro.codigo || rubro.concepto);
+                                  const rubroCat = rubro.rubroId ? rubrosCatalogo.find((r) => r.id === rubro.rubroId) : undefined;
+                                  const codigoDisplay = rubroCat?.codigo ?? rubro.codigo;
+                                  const conceptoDisplay = rubroCat?.concepto ?? rubro.concepto;
+                                  const puedeEditar = !estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado);
+                                  const otrasFilas = (pagoMes.rubros || []).filter((_, i) => i !== rubroIdx);
+                                  const rubrosIdsYaUsados = otrasFilas.map((r) => r.rubroId).filter(Boolean);
+                                  const codigosYaUsados = otrasFilas.map((r) => (r.rubroId ? rubrosCatalogo.find((c) => c.id === r.rubroId)?.codigo : r.codigo)).filter(Boolean);
+                                  const opcionesRubro = rubrosCatalogo.filter((r) => {
+                                    if (r.id === rubro.rubroId) return true;
+                                    if (rubrosIdsYaUsados.includes(r.id)) return false;
+                                    if (r.codigo && codigosYaUsados.includes(r.codigo)) return false;
+                                    return true;
+                                  });
+                                  return (
+                                    <Box key={`rubro-mes-${puesto.id}-${mesIndex}-${rubroIdx}`} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200">
+                                      {tieneRubro ? (
+                                        <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" gap={1}>
+                                          <Text fontSize="sm" fontWeight="medium" noOfLines={2}>
+                                            <Box as="span" fontWeight="bold" color="blue.600">
+                                              {codigoDisplay}
+                                            </Box>{" "}
+                                            {conceptoDisplay}
+                                          </Text>
+                                          {puedeEditar && (
+                                            <HStack>
+                                              <Button size="xs" variant="ghost" colorScheme="gray" onClick={() => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", "")}>
+                                                Cambiar
+                                              </Button>
                                               <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
-                                            )}
-                                          </HStack>
-                                        )}
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          placeholder="Ingresar valor"
-                                          value={rubro.monto}
-                                          onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "monto", e.target.value)}
-                                          isDisabled={estaPagado || tieneAbonosParciales}
-                                          size="sm"
-                                        />
-                                      </>
-                                    ) : (
-                                      <HStack spacing={2}>
-                                        <Input placeholder="Código" value={rubro.codigo} onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "codigo", e.target.value)} isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)} size="sm" maxW="70px" />
-                                        <Input placeholder="Concepto" value={rubro.concepto} onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "concepto", e.target.value)} isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)} size="sm" flex={1} />
-                                        <Input type="number" step="0.01" placeholder="Monto" value={rubro.monto} onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "monto", e.target.value)} isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)} size="sm" maxW="90px" />
-                                        {puedeEditar && (
-                                          <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={16} />} size="sm" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
-                                        )}
-                                      </HStack>
-                                    )}
-                                  </Box>
-                                );
-                              })}
-                            </VStack>
+                                            </HStack>
+                                          )}
+                                        </HStack>
+                                      ) : (
+                                        <HStack mb={2} spacing={2}>
+                                          <Select size="sm" placeholder="Seleccionar rubro..." value="" onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", e.target.value)} isDisabled={!puedeEditar}>
+                                            {opcionesRubro.map((r) => (
+                                              <option key={r.id} value={r.id}>
+                                                {r.concepto}
+                                              </option>
+                                            ))}
+                                          </Select>
+                                          {puedeEditar && (
+                                            <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
+                                          )}
+                                        </HStack>
+                                      )}
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="Ingresar valor"
+                                        value={rubro.monto}
+                                        onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "monto", e.target.value)}
+                                        isDisabled={estaPagado || tieneAbonosParciales}
+                                        size="sm"
+                                      />
+                                    </Box>
+                                  );
+                                })}
+                              </VStack>
+                            )}
                           </Box>
                         ) : (
                           <>

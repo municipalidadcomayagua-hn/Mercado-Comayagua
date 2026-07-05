@@ -501,59 +501,56 @@ export default function EspaciosPage() {
                     <Text fontWeight="bold" fontSize="sm" minW={0}>
                       Rubros a cobrar (catálogo del admin)
                     </Text>
-                    <Button size="sm" colorScheme="teal" leftIcon={<Plus size={16} />} onClick={() => setDraftRubrosEspacio((prev) => [...prev, { codigo: "", concepto: "", monto: "" }])} flexShrink={0}>
-                      Agregar rubro
-                    </Button>
-                  </HStack>
-                  <VStack spacing={2} align="stretch">
-                    {draftRubrosEspacio.map((rubro, idx) => {
-                      const otras = draftRubrosEspacio.filter((_, i) => i !== idx);
-                      const idsUsados = otras.map((r) => r.rubroId).filter(Boolean);
-                      const opciones = rubrosCatalogo.filter((r) => r.id === rubro.rubroId || !idsUsados.includes(r.id));
-                      return (
-                        <Box key={idx} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200" minW={0}>
-                          {rubrosCatalogo.length > 0 ? (
-                            <>
-                              <HStack mb={2} spacing={2} flexWrap="wrap" align="stretch">
-                                <Select
-                                  size="sm"
-                                  placeholder="Seleccionar rubro..."
-                                  value={rubro.rubroId || ""}
-                                  onChange={(e) => {
-                                    const id = e.target.value;
-                                    const c = rubrosCatalogo.find((r) => r.id === id);
-                                    setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, rubroId: id, codigo: c?.codigo ?? "", concepto: c?.concepto ?? "" } : r)));
-                                  }}
-                                  flex={1}
-                                  minW={0}
-                                >
-                                  {opciones.map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                      {r.concepto}
-                                    </option>
-                                  ))}
-                                </Select>
-                                <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => setDraftRubrosEspacio((prev) => prev.filter((_, i) => i !== idx))} flexShrink={0} />
-                              </HStack>
-                              <Input type="number" step="0.01" placeholder="Monto" value={rubro.monto} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, monto: e.target.value } : r)))} size="sm" w="100%" />
-                            </>
-                          ) : (
-                            <HStack spacing={2} flexWrap="wrap" align="flex-end">
-                              <Input placeholder="Código" value={rubro.codigo} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, codigo: e.target.value } : r)))} size="sm" w={{ base: "calc(50% - 4px)", sm: "70px" }} flexShrink={0} />
-                              <Input placeholder="Concepto" value={rubro.concepto} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, concepto: e.target.value } : r)))} size="sm" flex={{ base: "1 1 100%", sm: "1 1 0" }} />
-                              <Input type="number" step="0.01" placeholder="Monto" value={rubro.monto} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, monto: e.target.value } : r)))} size="sm" w={{ base: "calc(50% - 4px)", sm: "90px" }} flexShrink={0} />
-                              <IconButton aria-label="Eliminar" icon={<Trash2 size={14} />} size="sm" colorScheme="red" variant="ghost" onClick={() => setDraftRubrosEspacio((prev) => prev.filter((_, i) => i !== idx))} flexShrink={0} />
-                            </HStack>
-                          )}
-                        </Box>
-                      );
-                    })}
-                    {draftRubrosEspacio.length === 0 && (
-                      <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                        Agregue rubros del catálogo y montos. Luego use &quot;Guardar y distribuir en 12 meses&quot;.
-                      </Text>
+                    {rubrosCatalogo.length > 0 && (
+                      <Button size="sm" colorScheme="teal" leftIcon={<Plus size={16} />} onClick={() => setDraftRubrosEspacio((prev) => [...prev, { codigo: "", concepto: "", monto: "" }])} flexShrink={0}>
+                        Agregar rubro
+                      </Button>
                     )}
-                  </VStack>
+                  </HStack>
+                  {rubrosCatalogo.length === 0 ? (
+                    <Text fontSize="sm" color="orange.600" fontStyle="italic">
+                      No hay rubros creados. Pida al administrador que los agregue en el catálogo de rubros antes de registrar cobros.
+                    </Text>
+                  ) : (
+                    <VStack spacing={2} align="stretch">
+                      {draftRubrosEspacio.map((rubro, idx) => {
+                        const otras = draftRubrosEspacio.filter((_, i) => i !== idx);
+                        const idsUsados = otras.map((r) => r.rubroId).filter(Boolean);
+                        const opciones = rubrosCatalogo.filter((r) => r.id === rubro.rubroId || !idsUsados.includes(r.id));
+                        return (
+                          <Box key={idx} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200" minW={0}>
+                            <HStack mb={2} spacing={2} flexWrap="wrap" align="stretch">
+                              <Select
+                                size="sm"
+                                placeholder="Seleccionar rubro..."
+                                value={rubro.rubroId || ""}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  const c = rubrosCatalogo.find((r) => r.id === id);
+                                  setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, rubroId: id, codigo: c?.codigo ?? "", concepto: c?.concepto ?? "" } : r)));
+                                }}
+                                flex={1}
+                                minW={0}
+                              >
+                                {opciones.map((r) => (
+                                  <option key={r.id} value={r.id}>
+                                    {r.concepto}
+                                  </option>
+                                ))}
+                              </Select>
+                              <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => setDraftRubrosEspacio((prev) => prev.filter((_, i) => i !== idx))} flexShrink={0} />
+                            </HStack>
+                            <Input type="number" step="0.01" placeholder="Monto" value={rubro.monto} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, monto: e.target.value } : r)))} size="sm" w="100%" />
+                          </Box>
+                        );
+                      })}
+                      {draftRubrosEspacio.length === 0 && (
+                        <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                          Agregue rubros del catálogo y montos. Luego use &quot;Guardar y distribuir en 12 meses&quot;.
+                        </Text>
+                      )}
+                    </VStack>
+                  )}
                 </Box>
                 <Button
                   mt={4}
