@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Mercado Municipal San Antonio - Municipalidad de Comayagua",
+  title: "Sistema de Tarjeta de Cobros - Municipalidad de Comayagua",
   description: "Sistema de cobro de puestos de mercados municipales",
 };
 

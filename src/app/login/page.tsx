@@ -98,12 +98,16 @@ export default function LoginPage() {
               <Text fontSize="xs" fontWeight="700" color="blue.600" letterSpacing="0.08em" textTransform="uppercase">
                 Municipalidad de Comayagua
               </Text>
-              <Heading size="lg" color="gray.800" fontWeight="800">
-                Mercado Municipal San Antonio
+              <Heading
+                size={{ base: "lg", sm: "xl" }}
+                fontWeight="800"
+                bgGradient="linear(to-r, blue.600, teal.500)"
+                bgClip="text"
+                letterSpacing="-0.02em"
+                py={1}
+              >
+                Sistema de Tarjeta de Cobros
               </Heading>
-              <Text fontSize="sm" color="gray.500">
-                Sistema de Tarjeta de Cobro
-              </Text>
             </VStack>
           </VStack>
 

@@ -100,7 +100,7 @@ function BrandBlock({ subtitle, size = "md" }: { subtitle: string; size?: "md" |
       <Image src="/ESCUDOMPAL.bmp" alt="Logo Mercado" boxSize={size === "md" ? "40px" : "36px"} objectFit="contain" borderRadius="full" bg="white" />
       <Box>
         <Text fontSize={size === "md" ? "lg" : "md"} fontWeight="700" color="blue.600" lineHeight="1.2">
-          Mercado Municipal
+          Sistema de Tarjeta de Cobros
         </Text>
         <Text fontSize="xs" color="gray.500">
           {subtitle}
