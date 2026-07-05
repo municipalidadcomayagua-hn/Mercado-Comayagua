@@ -383,16 +383,16 @@ export default function EspaciosPage() {
             </Heading>
             <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
               <FormControl isRequired>
-                <FormLabel>Nombre del cliente</FormLabel>
-                <Input value={draftEspacio.nombreCliente} onChange={(e) => setDraftEspacio((d) => ({ ...d, nombreCliente: e.target.value }))} placeholder="Dueño del espacio" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Nombre del cliente</FormLabel>
+                <Input value={draftEspacio.nombreCliente} onChange={(e) => setDraftEspacio((d) => ({ ...d, nombreCliente: e.target.value }))} placeholder="Dueño del espacio" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl isRequired>
-                <FormLabel>Número de puesto</FormLabel>
-                <Input value={draftEspacio.numeroPuesto} onChange={(e) => setDraftEspacio((d) => ({ ...d, numeroPuesto: e.target.value }))} placeholder="Ej: 02" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Número de puesto</FormLabel>
+                <Input value={draftEspacio.numeroPuesto} onChange={(e) => setDraftEspacio((d) => ({ ...d, numeroPuesto: e.target.value }))} placeholder="Ej: 02" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl isRequired>
-                <FormLabel>Tipo</FormLabel>
-                <Select value={draftEspacio.tipoPuesto} onChange={(e) => setDraftEspacio((d) => ({ ...d, tipoPuesto: e.target.value }))} placeholder="Seleccione">
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Tipo</FormLabel>
+                <Select value={draftEspacio.tipoPuesto} onChange={(e) => setDraftEspacio((d) => ({ ...d, tipoPuesto: e.target.value }))} placeholder="Seleccione" size={{ base: "md", md: "lg" }}>
                   <option value="Mercadería">Mercadería</option>
                   <option value="Frutas">Frutas</option>
                   <option value="Verduras">Verduras</option>
@@ -401,28 +401,28 @@ export default function EspaciosPage() {
                 </Select>
               </FormControl>
               <FormControl>
-                <FormLabel>Valor de renta diaria (L.)</FormLabel>
-                <Input type="number" step="0.01" min="0" value={draftEspacio.valorDiario} onChange={(e) => setDraftEspacio((d) => ({ ...d, valorDiario: e.target.value }))} placeholder="0.00" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Valor de renta diaria (L.)</FormLabel>
+                <Input type="number" step="0.01" min="0" value={draftEspacio.valorDiario} onChange={(e) => setDraftEspacio((d) => ({ ...d, valorDiario: e.target.value }))} placeholder="0.00" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl>
-                <FormLabel>Nº identidad (opcional)</FormLabel>
-                <Input value={draftEspacio.numeroIdentidad} onChange={(e) => setDraftEspacio((d) => ({ ...d, numeroIdentidad: e.target.value }))} placeholder="0000-0000-00000" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Nº identidad (opcional)</FormLabel>
+                <Input value={draftEspacio.numeroIdentidad} onChange={(e) => setDraftEspacio((d) => ({ ...d, numeroIdentidad: e.target.value }))} placeholder="0000-0000-00000" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl>
-                <FormLabel>RTN (opcional)</FormLabel>
-                <Input value={draftEspacio.rtn} onChange={(e) => setDraftEspacio((d) => ({ ...d, rtn: e.target.value }))} placeholder="RTN" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>RTN (opcional)</FormLabel>
+                <Input value={draftEspacio.rtn} onChange={(e) => setDraftEspacio((d) => ({ ...d, rtn: e.target.value }))} placeholder="RTN" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl>
-                <FormLabel>Dirección del cliente</FormLabel>
-                <Input value={draftEspacio.direccionCliente} onChange={(e) => setDraftEspacio((d) => ({ ...d, direccionCliente: e.target.value }))} placeholder="Dirección" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Dirección del cliente</FormLabel>
+                <Input value={draftEspacio.direccionCliente} onChange={(e) => setDraftEspacio((d) => ({ ...d, direccionCliente: e.target.value }))} placeholder="Dirección" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl>
-                <FormLabel>Teléfono</FormLabel>
-                <Input value={draftEspacio.telefono} onChange={(e) => setDraftEspacio((d) => ({ ...d, telefono: e.target.value }))} placeholder="Teléfono" type="tel" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Teléfono</FormLabel>
+                <Input value={draftEspacio.telefono} onChange={(e) => setDraftEspacio((d) => ({ ...d, telefono: e.target.value }))} placeholder="Teléfono" type="tel" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl gridColumn={{ base: "1", md: "1 / -1" }}>
-                <FormLabel>Observaciones</FormLabel>
-                <Textarea value={draftEspacio.observaciones} onChange={(e) => setDraftEspacio((d) => ({ ...d, observaciones: e.target.value }))} placeholder="Notas u observaciones" rows={3} />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Observaciones</FormLabel>
+                <Textarea value={draftEspacio.observaciones} onChange={(e) => setDraftEspacio((d) => ({ ...d, observaciones: e.target.value }))} placeholder="Notas u observaciones" rows={3} fontSize={{ base: "sm", md: "md" }} />
               </FormControl>
 
               <Heading size="xs" gridColumn={{ base: "1", md: "1 / -1" }} mt={2} mb={1} color="teal.700">
@@ -559,6 +559,7 @@ export default function EspaciosPage() {
                   mt={4}
                   colorScheme="teal"
                   size="lg"
+                  w={{ base: "full", sm: "auto" }}
                   leftIcon={<CalendarDays size={18} />}
                   onClick={handleGuardarEspacioYDistribuir}
                   isLoading={distribuyendoEspacio}
@@ -574,10 +575,18 @@ export default function EspaciosPage() {
               </>
             )}
 
-            <HStack mt={4} spacing={3} flexWrap="wrap" gap={2}>
+            <VStack mt={4} spacing={3} align="stretch" w="full">
               {editEspacioId ? (
-                <>
-                  <Button colorScheme="teal" onClick={handleUpdateEspacio} isLoading={savingEspacio} leftIcon={<Save size={18} />} isDisabled={!draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()}>
+                <HStack flexDirection={{ base: "column", sm: "row" }} spacing={3} w="full">
+                  <Button
+                    colorScheme="teal"
+                    onClick={handleUpdateEspacio}
+                    isLoading={savingEspacio}
+                    leftIcon={<Save size={18} />}
+                    isDisabled={!draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()}
+                    w={{ base: "full", sm: "auto" }}
+                    size={{ base: "md", md: "lg" }}
+                  >
                     Guardar cambios
                   </Button>
                   <Button
@@ -587,13 +596,24 @@ export default function EspaciosPage() {
                       setShowNewEspacioForm(false);
                       limpiarDraft();
                     }}
+                    w={{ base: "full", sm: "auto" }}
+                    size={{ base: "md", md: "lg" }}
                   >
                     Cancelar
                   </Button>
-                </>
+                </HStack>
               ) : (
-                <>
-                  <Button colorScheme="blue" variant="outline" onClick={handleSaveNewEspacio} isLoading={savingEspacio} leftIcon={<Save size={18} />} isDisabled={!draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()}>
+                <HStack flexDirection={{ base: "column", sm: "row" }} spacing={3} w="full">
+                  <Button
+                    colorScheme="blue"
+                    variant="outline"
+                    onClick={handleSaveNewEspacio}
+                    isLoading={savingEspacio}
+                    leftIcon={<Save size={18} />}
+                    isDisabled={!draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()}
+                    w={{ base: "full", sm: "auto" }}
+                    size={{ base: "md", md: "lg" }}
+                  >
                     Solo guardar espacio (sin distribuir)
                   </Button>
                   <Button
@@ -603,12 +623,14 @@ export default function EspaciosPage() {
                       setEditEspacioId(null);
                       limpiarDraft();
                     }}
+                    w={{ base: "full", sm: "auto" }}
+                    size={{ base: "md", md: "lg" }}
                   >
                     Cancelar
                   </Button>
-                </>
+                </HStack>
               )}
-            </HStack>
+            </VStack>
           </CardBody>
         </Card>
       )}

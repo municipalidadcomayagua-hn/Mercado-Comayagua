@@ -249,29 +249,31 @@ export default function MercadosPage() {
       <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "md" }}>
         <ModalOverlay />
         <ModalContent mx={{ base: 0, md: "auto" }} my={{ base: 0, md: "auto" }}>
-          <ModalHeader>{selectedMercado ? "Editar Mercado" : "Nuevo Mercado"}</ModalHeader>
+          <ModalHeader fontSize={{ base: "md", md: "lg" }}>{selectedMercado ? "Editar Mercado" : "Nuevo Mercado"}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel>Nombre</FormLabel>
-                <Input value={formData.nombre} onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} placeholder="Ej: Mercado Central" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Nombre</FormLabel>
+                <Input value={formData.nombre} onChange={(e) => setFormData({ ...formData, nombre: e.target.value })} placeholder="Ej: Mercado Central" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl>
-                <FormLabel>Código (opcional)</FormLabel>
-                <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="Ej: MC01" />
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Código (opcional)</FormLabel>
+                <Input value={formData.codigo} onChange={(e) => setFormData({ ...formData, codigo: e.target.value })} placeholder="Ej: MC01" size={{ base: "md", md: "lg" }} />
               </FormControl>
               <FormControl display="flex" alignItems="center">
-                <FormLabel mb={0}>Activo</FormLabel>
-                <Switch isChecked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} />
+                <FormLabel mb={0} fontSize={{ base: "sm", md: "md" }}>
+                  Activo
+                </FormLabel>
+                <Switch isChecked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} size="lg" />
               </FormControl>
             </VStack>
           </ModalBody>
-          <ModalFooter>
-            <Button variant="outline" onClick={onClose} isDisabled={saving}>
+          <ModalFooter flexDirection={{ base: "column", sm: "row" }} gap={3}>
+            <Button variant="outline" onClick={onClose} isDisabled={saving} w={{ base: "full", sm: "auto" }} size={{ base: "md", md: "lg" }}>
               Cancelar
             </Button>
-            <Button colorScheme="blue" onClick={handleSave} isLoading={saving} loadingText="Guardando...">
+            <Button colorScheme="blue" onClick={handleSave} isLoading={saving} loadingText="Guardando..." w={{ base: "full", sm: "auto" }} size={{ base: "md", md: "lg" }}>
               Guardar
             </Button>
           </ModalFooter>

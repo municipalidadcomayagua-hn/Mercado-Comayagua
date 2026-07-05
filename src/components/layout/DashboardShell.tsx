@@ -20,7 +20,7 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Menu } from "lucide-react";
+import { LogOut, Menu, Store } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 const SIDEBAR_WIDTH = 264;
@@ -256,11 +256,17 @@ export function DashboardShell({ navItems, subtitle, mostrarMercado, children }:
               <Text fontSize={{ base: "sm", md: "lg" }} fontWeight="700" color="gray.800" noOfLines={1}>
                 {activeItem?.label ?? subtitle}
               </Text>
-              {mostrarMercado && mercadoNombre && (
-                <Badge colorScheme="teal" fontSize="0.65rem" display={{ base: "none", sm: "inline-block" }}>
-                  {mercadoNombre}
-                </Badge>
-              )}
+              {mostrarMercado &&
+                (mercadoNombre ? (
+                  <Badge colorScheme="teal" fontSize="0.7rem" display="inline-flex" alignItems="center" gap={1} px={2} py={0.5}>
+                    <Store size={11} />
+                    {mercadoNombre}
+                  </Badge>
+                ) : (
+                  <Badge colorScheme="orange" fontSize="0.7rem">
+                    Sin mercado asignado
+                  </Badge>
+                ))}
             </Box>
           </HStack>
 
