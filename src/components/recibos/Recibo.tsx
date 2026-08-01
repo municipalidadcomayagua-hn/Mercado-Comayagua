@@ -233,7 +233,7 @@ export default function Recibo({ cobro, puesto, mercadoNombre, onClose }: Recibo
         </Text>
       </Box>
 
-      <BotonesImpresionRecibo getReceiptLinesForBluetooth={getReceiptLinesForBluetooth} onDescargar={handleDescargar} onClose={onClose} />
+      <BotonesImpresionRecibo getReceiptLinesForBluetooth={getReceiptLinesForBluetooth} onDescargar={handleDescargar} onClose={onClose} telefonoWhatsapp={puesto?.telefono} />
     </ReciboContainer>
   );
 }

@@ -169,6 +169,63 @@ export type Database = {
           },
         ]
       }
+      cierres_diarios: {
+        Row: {
+          cantidad_diario: number
+          cantidad_mensual: number
+          cerrado_en: string
+          cobrador_id: string
+          created_at: string
+          fecha: string
+          id: string
+          mercado_id: string | null
+          total_diario: number
+          total_general: number
+          total_mensual: number
+        }
+        Insert: {
+          cantidad_diario?: number
+          cantidad_mensual?: number
+          cerrado_en?: string
+          cobrador_id: string
+          created_at?: string
+          fecha: string
+          id?: string
+          mercado_id?: string | null
+          total_diario?: number
+          total_general?: number
+          total_mensual?: number
+        }
+        Update: {
+          cantidad_diario?: number
+          cantidad_mensual?: number
+          cerrado_en?: string
+          cobrador_id?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          mercado_id?: string | null
+          total_diario?: number
+          total_general?: number
+          total_mensual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cierres_diarios_cobrador_id_fkey"
+            columns: ["cobrador_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cierres_diarios_mercado_id_fkey"
+            columns: ["mercado_id"]
+            isOneToOne: false
+            referencedRelation: "mercados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cobradores: {
         Row: {
           apellido: string

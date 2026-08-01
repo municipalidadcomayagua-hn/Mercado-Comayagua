@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { generarCodigoCuenta } from "@/lib/data/repositories/cobradores.repo";
@@ -89,4 +90,34 @@ export async function crearCobradorAction(
     await admin.auth.admin.deleteUser(userId);
     throw err;
   }
+}
+
+/** Genera una contraseña temporal legible (evita caracteres ambiguos como 0/O, 1/l/I). */
+function generarPasswordTemporal(): string {
+  const alfabeto = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let password = "";
+  for (let i = 0; i < 10; i++) password += alfabeto[randomInt(alfabeto.length)];
+  return password;
+}
+
+/**
+ * Restablece la contraseña de un cobrador (el admin la olvida/la pierde). No
+ * existia en el original (createUserWithEmailAndPassword del navegador no
+ * tenia equivalente de admin reset). Genera una contraseña temporal y marca
+ * debe_cambiar_password=true, igual que al crear el cobrador, para que la
+ * cambie en su primer siguiente inicio de sesion.
+ */
+export async function restablecerPasswordCobradorAction(userId: string): Promise<{ passwordTemporal: string }> {
+  await requireAdmin();
+
+  const admin = createAdminClient();
+  const passwordTemporal = generarPasswordTemporal();
+
+  const { error: authError } = await admin.auth.admin.updateUserById(userId, { password: passwordTemporal });
+  if (authError) throw new Error(authError.message || "No se pudo restablecer la contraseña");
+
+  const { error: perfilError } = await admin.from("perfiles").update({ debe_cambiar_password: true }).eq("id", userId);
+  if (perfilError) throw new Error(perfilError.message || "Contraseña restablecida, pero no se pudo marcar el cambio obligatorio");
+
+  return { passwordTemporal };
 }

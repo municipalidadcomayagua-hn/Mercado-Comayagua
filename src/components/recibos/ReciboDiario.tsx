@@ -163,11 +163,11 @@ export default function ReciboDiario({ cobro, puesto, mercadoNombre, onClose }: 
 
       <Box mt={4} p={3} bg="gray.50" borderRadius="md" borderWidth="1px" borderColor="gray.200">
         <Text fontSize="xs" fontWeight="medium" textAlign="center">
-          COBRO DIARIO {fechaFormateada} - MERCADO SAN ANTONIO - PUESTO {cobro.numero_puesto} - HNL. {money(montoTotal)}***
+          COBRO DIARIO {fechaFormateada} - {(mercadoNombre || "MERCADO MUNICIPAL").toUpperCase()} - PUESTO {cobro.numero_puesto} - HNL. {money(montoTotal)}***
         </Text>
       </Box>
 
-      <BotonesImpresionRecibo getReceiptLinesForBluetooth={getReceiptLinesForBluetooth} onDescargar={handleDescargar} onClose={onClose} />
+      <BotonesImpresionRecibo getReceiptLinesForBluetooth={getReceiptLinesForBluetooth} onDescargar={handleDescargar} onClose={onClose} telefonoWhatsapp={puesto?.telefono} />
     </ReciboContainer>
   );
 }

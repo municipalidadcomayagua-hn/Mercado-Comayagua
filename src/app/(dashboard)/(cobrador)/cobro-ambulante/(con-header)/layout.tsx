@@ -4,10 +4,10 @@ import { Box, VStack } from "@chakra-ui/react";
 import { CobroAmbulanteHeader } from "@/components/cobrador/CobroAmbulanteHeader";
 
 /**
- * Grupo de rutas para las 4 subvistas de /cobro-ambulante (espacios,
- * pagos-mensuales, pagos-diarios, estado-cuenta): todas comparten el
- * encabezado institucional. El panel central (/cobro-ambulante, fuera de
- * este grupo) no lo muestra, igual que el original.
+ * Grupo de rutas para las subvistas de /cobro-ambulante (espacios,
+ * pagos-mensuales, pagos-diarios, estado-cuenta, cierre-diario): todas
+ * comparten el encabezado institucional. El panel central (/cobro-ambulante,
+ * fuera de este grupo) no lo muestra, igual que el original.
  */
 export default function ConHeaderLayout({ children }: { children: React.ReactNode }) {
   return (

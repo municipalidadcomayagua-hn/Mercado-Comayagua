@@ -35,6 +35,7 @@ import { getCobrosPorRangoFechasConDetalle } from "@/lib/data/repositories/cobro
 import { getPerfilesMercadoMap } from "@/lib/data/repositories/perfiles.repo";
 import { getMercados } from "@/lib/data/repositories/mercados.repo";
 import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
+import { getCierresDiarios, type CierreDiarioConNombres } from "@/lib/data/repositories/cierre-diario.repo";
 import type { CobroConDetalle, Mercado, Rubro } from "@/lib/data/types";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -110,6 +111,7 @@ export default function ReporteResumenCobrosPage() {
   const [mercadoFiltro, setMercadoFiltro] = useState("");
   const [filas, setFilas] = useState<FilaResumenRubro[]>([]);
   const [totalGeneral, setTotalGeneral] = useState(0);
+  const [cierres, setCierres] = useState<CierreDiarioConNombres[]>([]);
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
   const toggleExpand = (key: string) => {
@@ -130,14 +132,16 @@ export default function ReporteResumenCobrosPage() {
     }
     setLoading(true);
     try {
-      const [cobrosRaw, perfilMercadoMap, mercadosList, catalogoRubros] = await Promise.all([
+      const [cobrosRaw, perfilMercadoMap, mercadosList, catalogoRubros, cierresList] = await Promise.all([
         getCobrosPorRangoFechasConDetalle(desde, hasta),
         getPerfilesMercadoMap(),
         getMercados(),
         getRubrosGlobales(),
+        getCierresDiarios(desde, hasta),
       ]);
 
       setMercados(mercadosList);
+      setCierres(cierresList);
 
       const inicio = new Date(desde);
       inicio.setHours(0, 0, 0, 0);
@@ -449,6 +453,49 @@ export default function ReporteResumenCobrosPage() {
           <Text color="gray.500" fontStyle="italic">
             Seleccione un rango de fechas y pulse «Generar reporte» para ver el resumen por catálogo de rubro y mercado con desglose.
           </Text>
+        )}
+
+        {!loading && cierres.length > 0 && (
+          <Card w="full">
+            <CardBody>
+              <Heading size="sm" mb={1}>
+                Cierres diarios registrados
+              </Heading>
+              <Text fontSize="xs" color="gray.500" mb={4}>
+                Confirmaciones de cierre de día hechas por los cobradores (Cierre diario) en el rango seleccionado.
+              </Text>
+              <TableContainer overflowX="auto" maxW="100%" sx={{ WebkitOverflowScrolling: "touch" }}>
+                <Table size="sm" variant="striped">
+                  <Thead bg="gray.50">
+                    <Tr>
+                      <Th>Fecha</Th>
+                      <Th>Cobrador</Th>
+                      <Th>Mercado</Th>
+                      <Th isNumeric>Mensuales</Th>
+                      <Th isNumeric>Diarios</Th>
+                      <Th isNumeric>Total</Th>
+                      <Th>Cerrado a las</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {cierres.map((c) => (
+                      <Tr key={c.id}>
+                        <Td whiteSpace="nowrap">{new Date(`${c.fecha}T00:00:00`).toLocaleDateString("es-HN", { day: "2-digit", month: "2-digit", year: "numeric" })}</Td>
+                        <Td whiteSpace="nowrap">{c.cobrador_nombre}</Td>
+                        <Td whiteSpace="nowrap">{c.mercado_nombre ?? "-"}</Td>
+                        <Td isNumeric>{formatCurrency(c.total_mensual)}</Td>
+                        <Td isNumeric>{formatCurrency(c.total_diario)}</Td>
+                        <Td isNumeric fontWeight="bold">
+                          {formatCurrency(c.total_general)}
+                        </Td>
+                        <Td whiteSpace="nowrap">{new Date(c.cerrado_en).toLocaleString("es-HN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </TableContainer>
+            </CardBody>
+          </Card>
         )}
       </VStack>
     </Box>

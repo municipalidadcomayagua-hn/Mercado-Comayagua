@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
   Badge,
   Box,
   Button,
@@ -11,6 +17,8 @@ import {
   Heading,
   IconButton,
   Input,
+  InputGroup,
+  InputRightElement,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -32,14 +40,14 @@ import {
   useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { Edit, Eye, Plus, Search } from "lucide-react";
+import { Copy, Edit, Eye, KeyRound, Plus, Search } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import type { Cobrador, Mercado } from "@/lib/data/types";
 import { generarCodigoCuenta, getCobradores, updateCobrador } from "@/lib/data/repositories/cobradores.repo";
 import { getMercadosActivos } from "@/lib/data/repositories/mercados.repo";
 import { updatePerfilMercado } from "@/lib/data/repositories/perfiles.repo";
-import { crearCobradorAction } from "@/app/actions/cobradores";
+import { crearCobradorAction, restablecerPasswordCobradorAction } from "@/app/actions/cobradores";
 
 type EstadoCobrador = "activo" | "suspendido" | "inactivo";
 
@@ -91,6 +99,8 @@ export default function CobradoresPage() {
   const { isAdmin } = useAuth();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isResultOpen, onOpen: onResultOpen, onClose: onResultClose } = useDisclosure();
+  const cancelarRestablecerRef = useRef<HTMLButtonElement>(null);
 
   const [cobradores, setCobradores] = useState<Cobrador[]>([]);
   const [mercados, setMercados] = useState<Mercado[]>([]);
@@ -102,6 +112,9 @@ export default function CobradoresPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [codigoCuenta, setCodigoCuenta] = useState("");
   const [formData, setFormData] = useState<FormData>(FORM_VACIO);
+  const [cobradorARestablecer, setCobradorARestablecer] = useState<Cobrador | null>(null);
+  const [restableciendo, setRestableciendo] = useState(false);
+  const [passwordResultado, setPasswordResultado] = useState<{ nombre: string; password: string } | null>(null);
 
   const loadCobradores = async () => {
     setLoading(true);
@@ -265,6 +278,31 @@ export default function CobradoresPage() {
     }
   };
 
+  const confirmarRestablecerPassword = async () => {
+    if (!cobradorARestablecer) return;
+    setRestableciendo(true);
+    try {
+      const { passwordTemporal } = await restablecerPasswordCobradorAction(cobradorARestablecer.user_id);
+      setPasswordResultado({ nombre: `${cobradorARestablecer.nombre} ${cobradorARestablecer.apellido}`, password: passwordTemporal });
+      setCobradorARestablecer(null);
+      onResultOpen();
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "No se pudo restablecer la contraseña", status: "error", duration: 5000, isClosable: true });
+    } finally {
+      setRestableciendo(false);
+    }
+  };
+
+  const copiarPassword = async () => {
+    if (!passwordResultado) return;
+    try {
+      await navigator.clipboard.writeText(passwordResultado.password);
+      toast({ title: "Contraseña copiada", status: "success", duration: 2000, isClosable: true });
+    } catch {
+      toast({ title: "No se pudo copiar", description: "Selecciónela manualmente", status: "warning", duration: 3000, isClosable: true });
+    }
+  };
+
   return (
     <VStack spacing={8} align="stretch">
       <HStack justify="space-between" align={{ base: "flex-start", md: "center" }} flexDirection={{ base: "column", md: "row" }} spacing={4} w="100%">
@@ -352,6 +390,16 @@ export default function CobradoresPage() {
                           <HStack spacing={2}>
                             <IconButton aria-label="Ver detalles" icon={<Eye size={16} />} size="sm" variant="ghost" onClick={() => handleVerCobrador(c)} />
                             {isAdmin && <IconButton aria-label="Editar" icon={<Edit size={16} />} size="sm" variant="ghost" onClick={() => handleEditarCobrador(c)} />}
+                            {isAdmin && (
+                              <IconButton
+                                aria-label="Restablecer contraseña"
+                                icon={<KeyRound size={16} />}
+                                size="sm"
+                                variant="ghost"
+                                colorScheme="orange"
+                                onClick={() => setCobradorARestablecer(c)}
+                              />
+                            )}
                           </HStack>
                         </Td>
                       </Tr>
@@ -418,6 +466,11 @@ export default function CobradoresPage() {
                         </Button>
                       )}
                     </HStack>
+                    {isAdmin && (
+                      <Button leftIcon={<KeyRound size={16} />} size="sm" colorScheme="orange" variant="outline" onClick={() => setCobradorARestablecer(c)}>
+                        Restablecer contraseña
+                      </Button>
+                    )}
                   </VStack>
                 </Box>
               ))
@@ -519,6 +572,50 @@ export default function CobradoresPage() {
                 Guardar Cambios
               </Button>
             )}
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <AlertDialog isOpen={!!cobradorARestablecer} leastDestructiveRef={cancelarRestablecerRef} onClose={() => setCobradorARestablecer(null)}>
+        <AlertDialogOverlay />
+        <AlertDialogContent mx={4}>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Restablecer contraseña
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            ¿Restablecer la contraseña de <strong>{cobradorARestablecer?.nombre} {cobradorARestablecer?.apellido}</strong>? Se generará una contraseña temporal y el cobrador deberá cambiarla en su próximo inicio de sesión. Su contraseña actual dejará de funcionar de inmediato.
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={cancelarRestablecerRef} onClick={() => setCobradorARestablecer(null)} isDisabled={restableciendo}>
+              Cancelar
+            </Button>
+            <Button colorScheme="orange" onClick={confirmarRestablecerPassword} ml={3} isLoading={restableciendo}>
+              Restablecer
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Modal isOpen={isResultOpen} onClose={onResultClose} isCentered size={{ base: "full", sm: "md" }}>
+        <ModalOverlay />
+        <ModalContent mx={{ base: 0, sm: "auto" }}>
+          <ModalHeader>Contraseña restablecida</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text fontSize="sm" color="gray.600" mb={4}>
+              Comparta esta contraseña temporal con <strong>{passwordResultado?.nombre}</strong>. Se le pedirá cambiarla al iniciar sesión. Esta contraseña no se volverá a mostrar.
+            </Text>
+            <InputGroup size="lg">
+              <Input value={passwordResultado?.password ?? ""} isReadOnly fontFamily="mono" fontWeight="bold" textAlign="center" />
+              <InputRightElement>
+                <IconButton aria-label="Copiar contraseña" icon={<Copy size={18} />} size="sm" variant="ghost" onClick={copiarPassword} />
+              </InputRightElement>
+            </InputGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" onClick={onResultClose} w="full">
+              Listo
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

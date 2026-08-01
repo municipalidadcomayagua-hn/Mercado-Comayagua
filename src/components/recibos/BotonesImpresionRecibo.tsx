@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, MenuButton, MenuList, MenuItem, HStack, Button, useToast } from "@chakra-ui/react";
-import { Printer, Download, ChevronDown, Smartphone, Bluetooth, FileText } from "lucide-react";
+import { Printer, Download, ChevronDown, Smartphone, Bluetooth, FileText, MessageCircle } from "lucide-react";
 import {
   shouldUseBluetoothPrint,
   printReceiptToBluetooth,
@@ -14,6 +14,16 @@ interface BotonesImpresionReciboProps {
   getReceiptLinesForBluetooth: () => string[];
   onDescargar?: () => void;
   onClose?: () => void;
+  /** Teléfono del cliente (si se conoce) para prellenar el destinatario de WhatsApp. */
+  telefonoWhatsapp?: string | null;
+}
+
+/** Limpia el teléfono guardado y le antepone el codigo de pais (504, Honduras) si hace falta. */
+function numeroWhatsapp(telefono?: string | null): string {
+  const soloDigitos = (telefono ?? "").replace(/\D/g, "");
+  if (!soloDigitos) return "";
+  if (soloDigitos.length === 8) return `504${soloDigitos}`;
+  return soloDigitos;
 }
 
 /**
@@ -25,8 +35,27 @@ export default function BotonesImpresionRecibo({
   getReceiptLinesForBluetooth,
   onDescargar,
   onClose,
+  telefonoWhatsapp,
 }: BotonesImpresionReciboProps) {
   const toast = useToast();
+
+  const handleEnviarWhatsapp = () => {
+    const texto = getReceiptLinesForBluetooth()
+      .filter((linea) => linea.trim().length > 0)
+      .join("\n");
+    const numero = numeroWhatsapp(telefonoWhatsapp);
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    if (!numero) {
+      toast({
+        title: "Seleccione el contacto en WhatsApp",
+        description: "El locatario no tiene teléfono guardado, elija el contacto manualmente.",
+        status: "info",
+        isClosable: true,
+        duration: 5000,
+      });
+    }
+  };
 
   const handleImprimirBluetooth = async () => {
     try {
@@ -112,6 +141,9 @@ export default function BotonesImpresionRecibo({
           Imprimir
         </Button>
       )}
+      <Button leftIcon={<MessageCircle size={18} />} bg="#25D366" color="white" _hover={{ bg: "#1ebe5a" }} onClick={handleEnviarWhatsapp} size={{ base: "sm", md: "md" }}>
+        WhatsApp
+      </Button>
       {onDescargar && (
         <Button leftIcon={<Download size={18} />} colorScheme="green" onClick={onDescargar} size={{ base: "sm", md: "md" }}>
           Descargar
