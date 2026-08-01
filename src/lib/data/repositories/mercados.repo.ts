@@ -35,8 +35,10 @@ export async function getMercadoById(id: string): Promise<Mercado | null> {
   return data;
 }
 
+type MercadoInfoControl = Pick<Mercado, "administrador_nombre" | "administrador_telefono" | "ubicacion" | "horario" | "notas">;
+
 export async function createMercado(
-  mercado: Pick<Mercado, "nombre"> & Partial<Pick<Mercado, "codigo" | "activo">>
+  mercado: Pick<Mercado, "nombre"> & Partial<Pick<Mercado, "codigo" | "activo">> & Partial<MercadoInfoControl>
 ): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -45,6 +47,11 @@ export async function createMercado(
       nombre: mercado.nombre,
       codigo: mercado.codigo ?? null,
       activo: mercado.activo ?? true,
+      administrador_nombre: mercado.administrador_nombre ?? null,
+      administrador_telefono: mercado.administrador_telefono ?? null,
+      ubicacion: mercado.ubicacion ?? null,
+      horario: mercado.horario ?? null,
+      notas: mercado.notas ?? null,
     })
     .select("id")
     .single();
@@ -54,7 +61,7 @@ export async function createMercado(
 
 export async function updateMercado(
   id: string,
-  updates: Partial<Pick<Mercado, "nombre" | "codigo" | "activo">>
+  updates: Partial<Pick<Mercado, "nombre" | "codigo" | "activo"> & MercadoInfoControl>
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from("mercados").update(updates).eq("id", id);

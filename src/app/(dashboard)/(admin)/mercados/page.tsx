@@ -31,6 +31,7 @@ import {
   Tbody,
   Td,
   Text,
+  Textarea,
   Th,
   Thead,
   Tr,
@@ -47,15 +48,34 @@ interface FormData {
   nombre: string;
   codigo: string;
   activo: boolean;
+  administradorNombre: string;
+  administradorTelefono: string;
+  ubicacion: string;
+  horario: string;
+  notas: string;
 }
 
-const FORM_VACIO: FormData = { nombre: "", codigo: "", activo: true };
+const FORM_VACIO: FormData = {
+  nombre: "",
+  codigo: "",
+  activo: true,
+  administradorNombre: "",
+  administradorTelefono: "",
+  ubicacion: "",
+  horario: "",
+  notas: "",
+};
 
 /**
  * Puerto de GestionMercados.tsx original. El `window.confirm` de
  * handleEliminar se reemplaza por un AlertDialog de Chakra (mismo patron ya
  * usado en espacios/page.tsx para eliminar locatarios) - no es un cambio de
  * logica de negocio, solo el equivalente visual dentro del sistema de diseño.
+ *
+ * Datos de control agregados (administrador, ubicacion, horario, notas):
+ * no existian en el original, se agregan a pedido para llevar mejor control
+ * administrativo de cada mercado. Todos opcionales, no afectan ninguna
+ * logica de cobros/folio/reportes existente.
  */
 export default function MercadosPage() {
   const { isAdmin } = useAuth();
@@ -100,7 +120,16 @@ export default function MercadosPage() {
 
   const handleEditar = (mercado: Mercado) => {
     setSelectedMercado(mercado);
-    setFormData({ nombre: mercado.nombre, codigo: mercado.codigo ?? "", activo: mercado.activo ?? true });
+    setFormData({
+      nombre: mercado.nombre,
+      codigo: mercado.codigo ?? "",
+      activo: mercado.activo ?? true,
+      administradorNombre: mercado.administrador_nombre ?? "",
+      administradorTelefono: mercado.administrador_telefono ?? "",
+      ubicacion: mercado.ubicacion ?? "",
+      horario: mercado.horario ?? "",
+      notas: mercado.notas ?? "",
+    });
     onOpen();
   };
 
@@ -111,7 +140,16 @@ export default function MercadosPage() {
     }
     setSaving(true);
     try {
-      const payload = { nombre: formData.nombre.trim(), codigo: formData.codigo.trim() || null, activo: formData.activo };
+      const payload = {
+        nombre: formData.nombre.trim(),
+        codigo: formData.codigo.trim() || null,
+        activo: formData.activo,
+        administrador_nombre: formData.administradorNombre.trim() || null,
+        administrador_telefono: formData.administradorTelefono.trim() || null,
+        ubicacion: formData.ubicacion.trim() || null,
+        horario: formData.horario.trim() || null,
+        notas: formData.notas.trim() || null,
+      };
       if (selectedMercado) {
         await updateMercado(selectedMercado.id, payload);
         toast({ title: "Éxito", description: "Mercado actualizado correctamente", status: "success", duration: 3000, isClosable: true });
@@ -180,11 +218,13 @@ export default function MercadosPage() {
         ) : (
           <>
             <TableContainer overflowX="auto" maxW="100%" display={{ base: "none", md: "block" }} sx={{ WebkitOverflowScrolling: "touch" }}>
-              <Table variant="simple" minW="400px">
+              <Table variant="simple" minW="560px">
                 <Thead bg="gray.50">
                   <Tr>
                     <Th>Código</Th>
                     <Th>Nombre</Th>
+                    <Th>Administrador</Th>
+                    <Th>Ubicación</Th>
                     <Th>Estado</Th>
                     {isAdmin && <Th>Acciones</Th>}
                   </Tr>
@@ -194,6 +234,25 @@ export default function MercadosPage() {
                     <Tr key={m.id}>
                       <Td fontWeight="medium">{m.codigo || "-"}</Td>
                       <Td>{m.nombre}</Td>
+                      <Td>
+                        {m.administrador_nombre ? (
+                          <>
+                            <Text noOfLines={1}>{m.administrador_nombre}</Text>
+                            {m.administrador_telefono && (
+                              <Text fontSize="xs" color="gray.500">
+                                {m.administrador_telefono}
+                              </Text>
+                            )}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </Td>
+                      <Td>
+                        <Text noOfLines={1} maxW="200px">
+                          {m.ubicacion || "-"}
+                        </Text>
+                      </Td>
                       <Td>
                         <Badge colorScheme={m.activo ? "green" : "gray"}>{m.activo ? "Activo" : "Inactivo"}</Badge>
                       </Td>
@@ -229,6 +288,18 @@ export default function MercadosPage() {
                       {m.activo ? "Activo" : "Inactivo"}
                     </Badge>
                   </HStack>
+                  {(m.administrador_nombre || m.ubicacion || m.horario) && (
+                    <VStack align="stretch" spacing={0.5} mt={2} fontSize="sm" color="gray.600">
+                      {m.administrador_nombre && (
+                        <Text noOfLines={1}>
+                          Admin: {m.administrador_nombre}
+                          {m.administrador_telefono ? ` · ${m.administrador_telefono}` : ""}
+                        </Text>
+                      )}
+                      {m.ubicacion && <Text noOfLines={1}>Ubicación: {m.ubicacion}</Text>}
+                      {m.horario && <Text noOfLines={1}>Horario: {m.horario}</Text>}
+                    </VStack>
+                  )}
                   {isAdmin && (
                     <HStack spacing={2} pt={3} mt={3} borderTopWidth="1px" borderColor="gray.100">
                       <Button leftIcon={<Edit size={16} />} size="sm" variant="outline" flex="1" onClick={() => handleEditar(m)}>
@@ -246,9 +317,9 @@ export default function MercadosPage() {
         )}
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "md" }}>
+      <Modal isOpen={isOpen} onClose={onClose} size={{ base: "full", md: "lg" }} scrollBehavior="inside">
         <ModalOverlay />
-        <ModalContent mx={{ base: 0, md: "auto" }} my={{ base: 0, md: "auto" }}>
+        <ModalContent mx={{ base: 0, md: "auto" }} my={{ base: 0, md: "auto" }} maxH={{ base: "100vh", md: "90vh" }}>
           <ModalHeader fontSize={{ base: "md", md: "lg" }}>{selectedMercado ? "Editar Mercado" : "Nuevo Mercado"}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
@@ -267,6 +338,61 @@ export default function MercadosPage() {
                 </FormLabel>
                 <Switch isChecked={formData.activo} onChange={(e) => setFormData({ ...formData, activo: e.target.checked })} size="lg" />
               </FormControl>
+
+              <Box w="full" pt={2} borderTopWidth="1px" borderColor="gray.100">
+                <Text fontSize="xs" fontWeight="700" color="gray.500" textTransform="uppercase" letterSpacing="0.05em" mb={3}>
+                  Datos de control (opcionales)
+                </Text>
+                <VStack spacing={4}>
+                  <FormControl>
+                    <FormLabel fontSize={{ base: "sm", md: "md" }}>Administrador del mercado</FormLabel>
+                    <Input
+                      value={formData.administradorNombre}
+                      onChange={(e) => setFormData({ ...formData, administradorNombre: e.target.value })}
+                      placeholder="Nombre del encargado"
+                      size={{ base: "md", md: "lg" }}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize={{ base: "sm", md: "md" }}>Teléfono del administrador</FormLabel>
+                    <Input
+                      value={formData.administradorTelefono}
+                      onChange={(e) => setFormData({ ...formData, administradorTelefono: e.target.value })}
+                      placeholder="Ej: 9999-9999"
+                      type="tel"
+                      size={{ base: "md", md: "lg" }}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize={{ base: "sm", md: "md" }}>Ubicación</FormLabel>
+                    <Input
+                      value={formData.ubicacion}
+                      onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                      placeholder="Ej: Barrio El Centro, frente al parque"
+                      size={{ base: "md", md: "lg" }}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize={{ base: "sm", md: "md" }}>Horario</FormLabel>
+                    <Input
+                      value={formData.horario}
+                      onChange={(e) => setFormData({ ...formData, horario: e.target.value })}
+                      placeholder="Ej: Lunes a sábado, 6:00 AM - 6:00 PM"
+                      size={{ base: "md", md: "lg" }}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize={{ base: "sm", md: "md" }}>Notas</FormLabel>
+                    <Textarea
+                      value={formData.notas}
+                      onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                      placeholder="Otros datos útiles: capacidad, referencias, observaciones..."
+                      rows={3}
+                      fontSize={{ base: "sm", md: "md" }}
+                    />
+                  </FormControl>
+                </VStack>
+              </Box>
             </VStack>
           </ModalBody>
           <ModalFooter flexDirection={{ base: "column", sm: "row" }} gap={3}>

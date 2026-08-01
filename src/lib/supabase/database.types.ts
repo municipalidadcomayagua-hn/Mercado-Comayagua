@@ -636,24 +636,39 @@ export type Database = {
       mercados: {
         Row: {
           activo: boolean
+          administrador_nombre: string | null
+          administrador_telefono: string | null
           codigo: string | null
           created_at: string
+          horario: string | null
           id: string
           nombre: string
+          notas: string | null
+          ubicacion: string | null
         }
         Insert: {
           activo?: boolean
+          administrador_nombre?: string | null
+          administrador_telefono?: string | null
           codigo?: string | null
           created_at?: string
+          horario?: string | null
           id?: string
           nombre: string
+          notas?: string | null
+          ubicacion?: string | null
         }
         Update: {
           activo?: boolean
+          administrador_nombre?: string | null
+          administrador_telefono?: string | null
           codigo?: string | null
           created_at?: string
+          horario?: string | null
           id?: string
           nombre?: string
+          notas?: string | null
+          ubicacion?: string | null
         }
         Relationships: []
       }
