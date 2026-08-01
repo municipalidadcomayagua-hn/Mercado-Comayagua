@@ -20,7 +20,7 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Menu, Store } from "lucide-react";
+import { KeyRound, LogOut, Menu, Store } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 const SIDEBAR_WIDTH = 264;
@@ -173,9 +173,14 @@ export function DashboardShell({ navItems, subtitle, mostrarMercado, children }:
                 </Text>
               </Box>
             </HStack>
-            <Button w="full" variant="ghost" leftIcon={<LogOut size={18} />} colorScheme="red" justifyContent="flex-start" size="md" borderRadius="xl" onClick={handleLogout}>
-              Cerrar sesión
-            </Button>
+            <VStack align="stretch" spacing={1}>
+              <Button w="full" variant="ghost" leftIcon={<KeyRound size={18} />} colorScheme="gray" justifyContent="flex-start" size="md" borderRadius="xl" onClick={() => router.push("/cambiar-password")}>
+                Cambiar contraseña
+              </Button>
+              <Button w="full" variant="ghost" leftIcon={<LogOut size={18} />} colorScheme="red" justifyContent="flex-start" size="md" borderRadius="xl" onClick={handleLogout}>
+                Cerrar sesión
+              </Button>
+            </VStack>
           </Box>
         </VStack>
       </Box>
@@ -212,9 +217,24 @@ export function DashboardShell({ navItems, subtitle, mostrarMercado, children }:
                   </Text>
                 </Box>
               </HStack>
-              <Button w="full" variant="ghost" leftIcon={<LogOut size={18} />} colorScheme="red" justifyContent="flex-start" onClick={handleLogout}>
-                Cerrar sesión
-              </Button>
+              <VStack align="stretch" spacing={1}>
+                <Button
+                  w="full"
+                  variant="ghost"
+                  leftIcon={<KeyRound size={18} />}
+                  colorScheme="gray"
+                  justifyContent="flex-start"
+                  onClick={() => {
+                    router.push("/cambiar-password");
+                    onClose();
+                  }}
+                >
+                  Cambiar contraseña
+                </Button>
+                <Button w="full" variant="ghost" leftIcon={<LogOut size={18} />} colorScheme="red" justifyContent="flex-start" onClick={handleLogout}>
+                  Cerrar sesión
+                </Button>
+              </VStack>
             </Box>
           </DrawerBody>
         </DrawerContent>
