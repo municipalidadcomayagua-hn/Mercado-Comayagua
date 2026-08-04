@@ -513,3 +513,29 @@ El original pasaba `undefined as any` para sortear el tipado de Chakra (el botó
 
 ## Fase 5 completa
 Con esta pantalla quedan portadas las 6 pantallas de administración (Dashboard, Cobradores, Mercados, Catálogo de rubros, Reportes, Cierre anual) y las 4 subvistas del cobrador (Fase 5d). Todo `npm run build` limpio en cada checkpoint. Sigue Fase 6 (políticas RLS de Supabase — ver §7 y §8.2 para las decisiones ya tomadas que las RLS deben reflejar).
+
+---
+
+## 19. Cambio de alcance: locatarios y cobros compartidos por mercado (no por cobrador)
+
+Pedido del equipo tras una reunión: si Juan, Pedro y Juana están los tres asignados al mismo mercado, un locatario que registre Juan debe ser visible y cobrable por Pedro y Juana también — hoy cada cobrador solo veía lo que él mismo había registrado (`cobrador_id`).
+
+**Decisión central:** `cobrador_id` no se elimina de ninguna tabla — se conserva en `puestos`, `cobros`, `cuentas_por_cobrar`, `abonos` y `deudas_mora` como columna de **auditoría** (quién registró/procesó cada fila). Lo que cambia es la clave con la que se **filtra y visualiza** la información en las 5 pantallas operativas del cobrador (Locatarios, Cobros mensuales, Pagos diarios, Estado de cuenta, Cierre diario): pasa de `cobrador_id` a `mercado_id`.
+
+La base de datos estaba vacía al momento del cambio (recién limpiada para la entrega), así que la migración (`0005_alcance_por_mercado.sql`) pudo agregar `mercado_id` como `NOT NULL` directamente en `puestos` y `cuentas_por_cobrar` (no existía en ninguna de las dos) y endurecer a `NOT NULL` el `mercado_id` que ya existía pero era nullable en `cobros` y `abonos`, sin necesidad de retro-poblar datos reales. Las claves únicas de "no repetir número de puesto" pasaron de `(cobrador_id, numero_puesto, anio, codigo)` a `(mercado_id, numero_puesto, anio, codigo)` — dos cobradores del mismo mercado ya no pueden registrar el mismo número de puesto (antes sí podían, por accidente, si no coordinaban), y dos mercados distintos sí pueden reutilizar el mismo número.
+
+### Qué se conserva por cobrador, a propósito
+- **`cierres_diarios`** (cierre de caja personal del cobrador) sigue siendo por `cobrador_id` — es una reconciliación de efectivo individual, no algo que deba compartirse entre compañeros de mercado.
+- **Reportes del admin** (`resumen-cobros`) sigue resolviendo el mercado de cada cobro vía `perfiles.mercado_id` del cobrador que lo hizo (no vía `cobro.mercado_id`), decisión ya documentada en §17 — no se tocó, y ahora agrupa naturalmente las contribuciones de varios cobradores de un mismo mercado bajo un solo total.
+
+### Borrado de locatarios compartidos
+Confirmado con el usuario: cualquier cobrador del mercado puede eliminar un locatario compartido (igual que antes cualquier cobrador podía eliminar los suyos) — no se restringió el borrado a solo el admin. `eliminarLocatarioCompleto` cambió su cascada de borrado de `puesto.cobrador_id` a `puesto.mercado_id`, para no dejar huérfanos los cobros/cuentas/abonos que haya registrado un compañero de mercado sobre ese mismo locatario.
+
+### Cierre anual: una sola deuda de mora por locatario, no una por cobrador
+`ejecutarCierreAnual` agrupaba la deuda a transferir con la clave `cobrador_id|numero_puesto|rubro_id`. Con locatarios compartidos eso fragmentaba en dos filas de `deudas_mora` la deuda de un mismo locatario si dos cobradores distintos habían guardado meses distintos durante el año. Se cambió a agrupar por `mercado_id|numero_puesto|rubro_id` (resolviendo `puesto_id` una vez por mercado) — un locatario con meses pendientes de varios cobradores termina en una sola deuda de mora por rubro. De paso, el insert de `deudas_mora` no mandaba `mercado_id` (la columna ya existía) — se agregó.
+
+### Cobradores sin mercado asignado quedan bloqueados
+Con `mercado_id` obligatorio en todo el flujo, un cobrador sin mercado asignado no puede operar. `(con-header)/layout.tsx` (envuelve las 5 pantallas operativas, no el panel central) muestra ahora una alerta bloqueante en vez de las pantallas si `user.mercado_id` es nulo, en vez de solo advertir como antes.
+
+### Detalle de implementación: auditoría vs. alcance en `registrarAbono`
+`registrarAbono` recibe ahora `mercadoId` como primer parámetro (alcance de la cuenta) y sigue recibiendo por separado `quienRegistraId` (auditoría — quién de los cobradores del mercado hizo el abono). El insert en `abonos.cobrador_id` usa `quienRegistraId`, no `mercadoId` — mezclar los dos habría insertado un UUID de mercado en una columna con FK a `perfiles`.

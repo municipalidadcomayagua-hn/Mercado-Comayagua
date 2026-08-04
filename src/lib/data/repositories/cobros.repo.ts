@@ -58,7 +58,7 @@ export async function createCobro(
   options?: CrearCobroOptions
 ): Promise<string> {
   const supabase = createClient();
-  const mercadoId = cobro.mercado_id?.trim() || null;
+  const mercadoId = cobro.mercado_id.trim();
   const numeroRecibo = options?.numeroRecibo ?? (await siguienteNumeroRecibo(mercadoId));
 
   const { pagos_adicionales, pagos_diarios, abonos_concepto, ...scalarFields } = cobro;
@@ -264,31 +264,31 @@ export async function getCobrosPorRangoFechasConDetalle(desde: Date, hasta: Date
   return data as unknown as CobroConDetalle[];
 }
 
-/** Variante con pagos_adicionales/abonos_concepto: para pantallas que calculan rubros pendientes por mes (ej. EstadoDeCuentaCobrador). */
-export async function getCobrosPorAmbulanteConDetalle(cobradorId: string): Promise<CobroConDetalle[]> {
+/** Variante con pagos_adicionales/abonos_concepto: para pantallas que calculan rubros pendientes por mes (ej. EstadoDeCuentaCobrador). Alcance por mercado: comparte los cobros entre todos los cobradores asignados a ese mercado. */
+export async function getCobrosPorMercadoConDetalle(mercadoId: string): Promise<CobroConDetalle[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("cobros")
     .select(SELECT_CON_DETALLE)
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .order("fecha_cobro", { ascending: false });
   if (error) throw error;
   return data as unknown as CobroConDetalle[];
 }
 
-export async function getCobrosPorAmbulante(cobradorId: string): Promise<Cobro[]> {
+export async function getCobrosPorMercado(mercadoId: string): Promise<Cobro[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("cobros")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .order("fecha_cobro", { ascending: false });
   if (error) throw error;
   return data;
 }
 
-/** Incluye pagos_diarios: PagosDiarios.tsx necesita el detalle por puesto para reconstruir el estado guardado. */
-export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date): Promise<CobroConDetalle[]> {
+/** Incluye pagos_diarios: PagosDiarios.tsx necesita el detalle por puesto para reconstruir el estado guardado. Por mercado: cualquier cobrador del equipo puede ver/continuar el reporte del dia. */
+export async function getCobrosDiariosPorMercadoYFecha(mercadoId: string, fecha: Date): Promise<CobroConDetalle[]> {
   const inicioDia = new Date(fecha);
   inicioDia.setHours(0, 0, 0, 0);
   const finDia = new Date(fecha);
@@ -298,7 +298,7 @@ export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date):
   const { data, error } = await supabase
     .from("cobros")
     .select(SELECT_CON_DETALLE)
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("es_cobro_diario", true)
     .gte("fecha_cobro_dia", inicioDia.toISOString())
     .lte("fecha_cobro_dia", finDia.toISOString());
@@ -307,14 +307,14 @@ export async function getCobrosDiariosPorFecha(cobradorId: string, fecha: Date):
 }
 
 /** Anula todos los cobros mensuales activos de un puesto (al desactivar locatario). */
-export async function anularCobrosMensualesPorPuesto(
-  cobradorId: string,
+export async function anularCobrosMensualesPorPuestoEnMercado(
+  mercadoId: string,
   numeroPuesto: string,
   anio: number,
   motivoAnulacion: string,
   anuladoPorId: string
 ): Promise<number> {
-  const cobros = await getCobrosPorAmbulante(cobradorId);
+  const cobros = await getCobrosPorMercado(mercadoId);
   const aAnular = cobros.filter(
     (c) =>
       c.tipo_cobro === "mensual" &&

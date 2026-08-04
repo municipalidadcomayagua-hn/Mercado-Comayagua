@@ -41,12 +41,12 @@ import {
 } from "@chakra-ui/react";
 import { Plus } from "lucide-react";
 import {
-  getCuentasPorAmbulante,
-  getResumenCobrador,
+  getCuentasPorMercado,
+  getResumenMercado,
   registrarAbono,
   type ResultadoRegistroAbono,
 } from "@/lib/data/repositories/cuentas.repo";
-import { getCobrosPorAmbulanteConDetalle } from "@/lib/data/repositories/cobros.repo";
+import { getCobrosPorMercadoConDetalle } from "@/lib/data/repositories/cobros.repo";
 import { RUBRO_RENTA_MENSUAL } from "@/lib/data/types";
 import type { CuentaPorCobrar, CobroConDetalle } from "@/lib/data/types";
 import ReciboAbono from "@/components/recibos/ReciboAbono";
@@ -59,7 +59,7 @@ interface EstadoDeCuentaCobradorProps {
   cobradorId: string;
   cobradorNombre: string;
   mercadoNombre?: string | null;
-  mercadoId?: string | null;
+  mercadoId: string;
 }
 
 const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -95,7 +95,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
   const cargar = async () => {
     setLoading(true);
     try {
-      const [lista, res] = await Promise.all([getCuentasPorAmbulante(cobradorId), getResumenCobrador(cobradorId)]);
+      const [lista, res] = await Promise.all([getCuentasPorMercado(mercadoId), getResumenMercado(mercadoId)]);
       setCuentas(lista);
       setResumen(res);
     } catch (e) {
@@ -107,9 +107,9 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
   };
 
   useEffect(() => {
-    if (cobradorId) cargar();
+    if (mercadoId) cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cobradorId]);
+  }, [mercadoId]);
 
   const mesActual = new Date().getMonth() + 1;
 
@@ -124,7 +124,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
     setCobrosPorMes({});
     onAbonoOpen();
     try {
-      const cobros = await getCobrosPorAmbulanteConDetalle(cobradorId);
+      const cobros = await getCobrosPorMercadoConDetalle(mercadoId);
       const pendientes = cobros.filter(
         (c) =>
           c.tipo_cobro === "mensual" &&
@@ -214,16 +214,15 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
     try {
       const opciones =
         mesesSeleccionados.length > 0
-          ? { meses: mesesSeleccionados, anio: anioActual, nombreCliente: cuentaSeleccionada.nombre_cliente ?? undefined, ...(mercadoId && { mercadoId }) }
+          ? { meses: mesesSeleccionados, anio: anioActual, nombreCliente: cuentaSeleccionada.nombre_cliente ?? undefined }
           : {
               mesAplicado: typeof mesAplicadoSeleccionado === "number" ? mesAplicadoSeleccionado : undefined,
               anio: anioActual,
               rubroAplicado: rubroAplicadoSeleccionado.trim() ? { concepto: rubroAplicadoSeleccionado.trim() } : undefined,
               nombreCliente: cuentaSeleccionada.nombre_cliente ?? undefined,
-              ...(mercadoId && { mercadoId }),
             };
 
-      const resultado = await registrarAbono(cobradorId, cuentaSeleccionada.numero_puesto, monto, cobradorId, cobradorNombre, referenciaAbono || undefined, opciones);
+      const resultado = await registrarAbono(mercadoId, cuentaSeleccionada.numero_puesto, monto, cobradorId, cobradorNombre, referenciaAbono || undefined, opciones);
 
       toast({ title: "Abono registrado", status: "success", isClosable: true });
       onAbonoClose();

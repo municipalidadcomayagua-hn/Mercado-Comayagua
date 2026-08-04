@@ -26,7 +26,7 @@ import {
   Select,
 } from "@chakra-ui/react";
 import { Calendar, Save, CheckCircle, Upload, Edit, Receipt, FileText } from "lucide-react";
-import { createCobro, getCobrosDiariosPorFecha, getCobroById, updateCobro } from "@/lib/data/repositories/cobros.repo";
+import { createCobro, getCobrosDiariosPorMercadoYFecha, getCobroById, updateCobro } from "@/lib/data/repositories/cobros.repo";
 import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
 import type { Rubro, CobroConDetalle } from "@/lib/data/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -81,19 +81,19 @@ export default function PagosDiariosPage() {
   }, []);
 
   useEffect(() => {
-    if (fechaCobro && user?.id) {
+    if (fechaCobro && mercadoId) {
       setPagos(puestosVacios());
       setReporteCompletado(false);
       cargarCobrosDelDia();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fechaCobro, user?.id]);
+  }, [fechaCobro, mercadoId]);
 
   const cargarCobrosDelDia = async () => {
-    if (!user?.id) return;
+    if (!mercadoId) return;
     try {
       const fecha = new Date(fechaCobro);
-      const cobrosDelDia = await getCobrosDiariosPorFecha(user.id, fecha);
+      const cobrosDelDia = await getCobrosDiariosPorMercadoYFecha(mercadoId, fecha);
 
       const reporteCompleto = cobrosDelDia.find((c) => c.reporte_diario_completado);
       if (reporteCompleto) setReporteCompletado(true);
@@ -164,7 +164,7 @@ export default function PagosDiariosPage() {
       toast({ title: "Error", description: "No se encontró el cobro a editar", status: "error", duration: 3000, isClosable: true });
       return;
     }
-    if (!user?.id) return;
+    if (!user?.id || !mercadoId) return;
 
     setLoadingPuesto((prev) => ({ ...prev, [numeroPuesto]: true }));
     try {
@@ -220,7 +220,7 @@ export default function PagosDiariosPage() {
       toast({ title: "No permitido", description: "Ya se generó el recibo de este puesto. No se puede modificar.", status: "warning", isClosable: true });
       return;
     }
-    if (!fechaCobro || !user?.id) {
+    if (!fechaCobro || !user?.id || !mercadoId) {
       toast({ title: "Error", description: "Debe seleccionar la fecha del cobro", status: "error", duration: 3000, isClosable: true });
       return;
     }
@@ -309,7 +309,7 @@ export default function PagosDiariosPage() {
       toast({ title: "Error", description: "Debe haber al menos un puesto cobrado para finalizar el reporte", status: "error", duration: 3000, isClosable: true });
       return;
     }
-    if (!fechaCobro || !user?.id) {
+    if (!fechaCobro || !user?.id || !mercadoId) {
       toast({ title: "Error", description: "Debe seleccionar la fecha del cobro", status: "error", duration: 3000, isClosable: true });
       return;
     }

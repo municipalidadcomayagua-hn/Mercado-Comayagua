@@ -1,14 +1,19 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Abono, Cobro, CuentaPorCobrar } from "@/lib/data/types";
 import { siguienteNumeroRecibo } from "./folio.repo";
-import { getCobroById, getCobrosPorAmbulante, updateCobro } from "./cobros.repo";
+import { getCobroById, getCobrosPorMercado, updateCobro } from "./cobros.repo";
 
 // Puerto de src/services/cuentasPorCobrarService.ts original.
 //
 // Cambio de plataforma (no de logica): el id compuesto `${ambulanteId}_${numeroPuesto}`
-// del original se reemplaza por la constraint UNIQUE(cobrador_id, numero_puesto) del
-// esquema relacional (MIGRATION_NOTES.md seccion 3.6); las consultas por esa pareja
-// de columnas reemplazan la lectura por id compuesto.
+// del original se reemplaza por la constraint UNIQUE(mercado_id, numero_puesto) del
+// esquema relacional; las consultas por esa pareja de columnas reemplazan la
+// lectura por id compuesto.
+//
+// Alcance por mercado (no por cobrador): la cuenta de un puesto es una sola,
+// compartida por todos los cobradores asignados a ese mercado. cobrador_id
+// se conserva en cada fila como auditoria de quien hizo el ultimo movimiento,
+// ya no se usa para filtrar - ver MIGRATION_NOTES.md.
 //
 // Nota sobre concurrencia (documentado, no corregido): igual que el original
 // (lectura + escritura sin transaccion en Firestore), agregarMonto/registrarAbono
@@ -18,10 +23,11 @@ import { getCobroById, getCobrosPorAmbulante, updateCobro } from "./cobros.repo"
 /** Input minimo de un cobro para actualizar la cuenta (evita depender del tipo completo). */
 type CobroParaCuenta = Pick<
   Cobro,
-  "cobrador_id" | "numero_puesto" | "monto" | "nombre_cliente" | "mes" | "anio" | "fecha_cobro_dia" | "es_cobro_diario" | "reporte_diario_completado"
+  "cobrador_id" | "mercado_id" | "numero_puesto" | "monto" | "nombre_cliente" | "mes" | "anio" | "fecha_cobro_dia" | "es_cobro_diario" | "reporte_diario_completado"
 >;
 
 async function agregarMonto(
+  mercadoId: string,
   cobradorId: string,
   numeroPuesto: string,
   monto: number,
@@ -32,7 +38,7 @@ async function agregarMonto(
   const { data: existente } = await supabase
     .from("cuentas_por_cobrar")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .maybeSingle();
 
@@ -78,6 +84,7 @@ async function agregarMonto(
 
   const { error } = await supabase.from("cuentas_por_cobrar").upsert(
     {
+      mercado_id: mercadoId,
       cobrador_id: cobradorId,
       numero_puesto: numeroPuesto,
       nombre_cliente: nombre,
@@ -90,7 +97,7 @@ async function agregarMonto(
       ultima_fecha_abono: existente?.ultima_fecha_abono ?? null,
       updated_at: ahora.toISOString(),
     },
-    { onConflict: "cobrador_id,numero_puesto" }
+    { onConflict: "mercado_id,numero_puesto" }
   );
   if (error) throw error;
 }
@@ -109,11 +116,12 @@ export async function actualizarCuentaDesdeCobro(cobro: CobroParaCuenta): Promis
   if (cobro.reporte_diario_completado === true) return;
   if (cobro.es_cobro_diario === true) return;
 
-  await agregarMonto(cobro.cobrador_id, cobro.numero_puesto, cobro.monto, cobro.nombre_cliente, cobro);
+  await agregarMonto(cobro.mercado_id, cobro.cobrador_id, cobro.numero_puesto, cobro.monto, cobro.nombre_cliente, cobro);
 }
 
 /** Suma un monto a una cuenta sin pasar por un cobro (para lotes creados en paralelo). */
-export async function sumarMontoACuenta(
+export async function sumarMontoACuentaPorMercado(
+  mercadoId: string,
   cobradorId: string,
   numeroPuesto: string,
   monto: number,
@@ -123,7 +131,7 @@ export async function sumarMontoACuenta(
   const { data: existente } = await supabase
     .from("cuentas_por_cobrar")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .maybeSingle();
 
@@ -131,6 +139,7 @@ export async function sumarMontoACuenta(
 
   if (!existente) {
     const { error } = await supabase.from("cuentas_por_cobrar").insert({
+      mercado_id: mercadoId,
       cobrador_id: cobradorId,
       numero_puesto: numeroPuesto,
       nombre_cliente: nombreCliente ?? null,
@@ -153,27 +162,28 @@ export async function sumarMontoACuenta(
   const { error } = await supabase
     .from("cuentas_por_cobrar")
     .update({
+      cobrador_id: cobradorId,
       nombre_cliente: nombreCliente ?? existente.nombre_cliente ?? null,
       monto_total: montoTotal,
       saldo_pendiente: saldoPendiente,
       estado,
       updated_at: ahora,
     })
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto);
   if (error) throw error;
 }
 
 /** Total abonado por puesto para un anio (para que el anio siguiente empiece en 0). */
 async function getTotalAbonadoPorPuestoYAnio(
-  cobradorId: string,
+  mercadoId: string,
   anio: number
 ): Promise<Record<string, number>> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("abonos")
     .select("numero_puesto, monto")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("anio", anio);
   if (error) throw error;
 
@@ -186,25 +196,26 @@ async function getTotalAbonadoPorPuestoYAnio(
 }
 
 /**
- * Cuentas por cobrar de un cobrador, recalculadas: montoTotal/saldo solo por
+ * Cuentas por cobrar de un mercado, recalculadas: montoTotal/saldo solo por
  * meses VENCIDOS del anio actual (el mes en curso aun no cuenta como deuda),
  * y totalAbonado solo del anio actual (el anio siguiente empieza en 0).
  * Los valores guardados en la fila son un cache; esta funcion los sobreescribe
- * en memoria, igual que el original.
+ * en memoria, igual que el original. Compartida por todos los cobradores del
+ * mercado (no solo quien registro cada cobro).
  */
-export async function getCuentasPorAmbulante(cobradorId: string): Promise<CuentaPorCobrar[]> {
+export async function getCuentasPorMercado(mercadoId: string): Promise<CuentaPorCobrar[]> {
   const supabase = createClient();
   const { data: cuentas, error } = await supabase
     .from("cuentas_por_cobrar")
     .select("*")
-    .eq("cobrador_id", cobradorId);
+    .eq("mercado_id", mercadoId);
   if (error) throw error;
 
   const ahora = new Date();
   const anioActual = ahora.getFullYear();
   const mesActual = ahora.getMonth() + 1;
 
-  const cobros = await getCobrosPorAmbulante(cobradorId);
+  const cobros = await getCobrosPorMercado(mercadoId);
   const soloMesesVencidos = cobros.filter(
     (c) =>
       c.tipo_cobro === "mensual" &&
@@ -221,7 +232,7 @@ export async function getCuentasPorAmbulante(cobradorId: string): Promise<Cuenta
     montoPorPuesto[key] = (montoPorPuesto[key] ?? 0) + (c.monto ?? 0);
   }
 
-  const abonadoPorPuesto = await getTotalAbonadoPorPuestoYAnio(cobradorId, anioActual);
+  const abonadoPorPuesto = await getTotalAbonadoPorPuestoYAnio(mercadoId, anioActual);
 
   const listFiltrada: CuentaPorCobrar[] = [];
   for (const cuenta of cuentas) {
@@ -243,15 +254,15 @@ export async function getCuentasPorAmbulante(cobradorId: string): Promise<Cuenta
   return listFiltrada;
 }
 
-export async function getCuentaPorPuesto(
-  cobradorId: string,
+export async function getCuentaPorPuestoEnMercado(
+  mercadoId: string,
   numeroPuesto: string
 ): Promise<CuentaPorCobrar | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("cuentas_por_cobrar")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .maybeSingle();
   if (error) throw error;
@@ -264,7 +275,6 @@ export interface RegistrarAbonoOpciones {
   mesAplicado?: number;
   rubroAplicado?: { concepto: string };
   nombreCliente?: string;
-  mercadoId?: string;
 }
 
 export interface ResultadoRegistroAbono {
@@ -285,9 +295,14 @@ export interface ResultadoRegistroAbono {
  * (pagos mensuales completos), marca esos cobros como recibo generado. Si
  * `mesAplicado`+`rubroAplicado` se envian (abono parcial por concepto),
  * actualiza la tabla hija cobros_abonos_concepto del cobro de ese mes.
+ *
+ * `mercadoId` es el alcance (que cuenta/cobros se leen); `quienRegistraId`/
+ * `quienRegistraNombre` son la auditoria de quien hizo el abono - pueden ser
+ * un cobrador distinto de quien registro el cobro original, ahora que varios
+ * cobradores comparten el mismo mercado.
  */
 export async function registrarAbono(
-  cobradorId: string,
+  mercadoId: string,
   numeroPuesto: string,
   monto: number,
   quienRegistraId: string,
@@ -299,7 +314,7 @@ export async function registrarAbono(
   const { data: cuenta, error: cuentaError } = await supabase
     .from("cuentas_por_cobrar")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .maybeSingle();
   if (cuentaError) throw cuentaError;
@@ -315,10 +330,10 @@ export async function registrarAbono(
   const anio = opciones?.anio;
 
   // Siempre se asigna numeroRecibo (abonos totales o parciales generan recibo).
-  const numeroRecibo = await siguienteNumeroRecibo(opciones?.mercadoId ?? null);
+  const numeroRecibo = await siguienteNumeroRecibo(mercadoId);
 
   if (meses?.length && anio != null) {
-    const cobros = await getCobrosPorAmbulante(cobradorId);
+    const cobros = await getCobrosPorMercado(mercadoId);
     const cobrosAMarcar = cobros.filter(
       (c) =>
         c.tipo_cobro === "mensual" &&
@@ -336,7 +351,7 @@ export async function registrarAbono(
   const mesAplicado = opciones?.mesAplicado;
   const rubroAplicado = opciones?.rubroAplicado;
   if (mesAplicado != null && anio != null && rubroAplicado?.concepto) {
-    const cobros = await getCobrosPorAmbulante(cobradorId);
+    const cobros = await getCobrosPorMercado(mercadoId);
     const cobroMes = cobros.find(
       (c) =>
         c.tipo_cobro === "mensual" &&
@@ -367,7 +382,8 @@ export async function registrarAbono(
   const { data: abonoCreado, error: abonoError } = await supabase
     .from("abonos")
     .insert({
-      cobrador_id: cobradorId,
+      mercado_id: mercadoId,
+      cobrador_id: quienRegistraId,
       numero_puesto: numeroPuesto,
       monto,
       fecha: ahora.toISOString(),
@@ -378,7 +394,6 @@ export async function registrarAbono(
       anio: anio ?? null,
       mes_aplicado: opciones?.mesAplicado ?? null,
       rubro_aplicado_concepto: opciones?.rubroAplicado?.concepto ?? null,
-      mercado_id: opciones?.mercadoId?.trim() || null,
     })
     .select("id")
     .single();
@@ -387,13 +402,14 @@ export async function registrarAbono(
   const { error: updateError } = await supabase
     .from("cuentas_por_cobrar")
     .update({
+      cobrador_id: quienRegistraId,
       total_abonado: totalAbonado,
       saldo_pendiente: saldoPendiente,
       ultima_fecha_abono: ahora.toISOString(),
       estado,
       updated_at: ahora.toISOString(),
     })
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto);
   if (updateError) throw updateError;
 
@@ -411,23 +427,23 @@ export async function registrarAbono(
   };
 }
 
-export async function getAbonosPorCuenta(cobradorId: string, numeroPuesto: string): Promise<Abono[]> {
+export async function getAbonosPorCuentaEnMercado(mercadoId: string, numeroPuesto: string): Promise<Abono[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("abonos")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .order("fecha", { ascending: false });
   if (error) throw error;
   return data;
 }
 
-/** Resumen para el cobrador: total cobrado y total pendiente (solo meses vencidos). */
-export async function getResumenCobrador(
-  cobradorId: string
+/** Resumen del mercado: total cobrado y total pendiente (solo meses vencidos), compartido por su equipo de cobradores. */
+export async function getResumenMercado(
+  mercadoId: string
 ): Promise<{ totalCobrado: number; totalPendiente: number }> {
-  const cuentas = await getCuentasPorAmbulante(cobradorId);
+  const cuentas = await getCuentasPorMercado(mercadoId);
   const totalCobrado = cuentas.reduce((s, c) => s + c.monto_total, 0);
   const totalPendiente = cuentas.reduce((s, c) => s + c.saldo_pendiente, 0);
   return { totalCobrado, totalPendiente };
@@ -436,17 +452,17 @@ export async function getResumenCobrador(
 /** Total de deuda pendiente en el sistema (solo meses vencidos sin pagar). Para el Dashboard admin. */
 export async function getTotalDeudaPendienteSistema(): Promise<number> {
   const supabase = createClient();
-  const { data, error } = await supabase.from("cuentas_por_cobrar").select("cobrador_id");
+  const { data, error } = await supabase.from("cuentas_por_cobrar").select("mercado_id");
   if (error) throw error;
 
-  const cobradorIds = new Set<string>();
+  const mercadoIds = new Set<string>();
   for (const row of data) {
-    if (row.cobrador_id) cobradorIds.add(row.cobrador_id);
+    if (row.mercado_id) mercadoIds.add(row.mercado_id);
   }
 
   let total = 0;
-  for (const cobradorId of cobradorIds) {
-    const res = await getResumenCobrador(cobradorId);
+  for (const mercadoId of mercadoIds) {
+    const res = await getResumenMercado(mercadoId);
     total += res.totalPendiente;
   }
   return total;

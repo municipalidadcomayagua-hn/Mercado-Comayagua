@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getRubrosGlobales } from "./rubros.repo";
-import { getPuestosPorAmbulante } from "./puestos.repo";
+import { getPuestosPorMercado } from "./puestos.repo";
 import type { Rubro } from "@/lib/data/types";
 
 // Puerto de src/services/cierreAnualService.ts original.
@@ -38,6 +38,7 @@ export interface ResultadoCierreAnual {
 interface CobroPendienteRow {
   id: string;
   cobrador_id: string;
+  mercado_id: string | null;
   numero_puesto: string;
   nombre_cliente: string | null;
   renta_mensual: number | null;
@@ -48,6 +49,7 @@ interface AgregadoMora {
   monto: number;
   rubro: Rubro;
   cobradorId: string;
+  mercadoId: string;
   numeroPuesto: string;
   nombreCliente: string;
 }
@@ -73,7 +75,7 @@ export async function ejecutarCierreAnual(anio: number): Promise<ResultadoCierre
 
   const { data: cobrosRaw, error: cobrosError } = await supabase
     .from("cobros")
-    .select("id, cobrador_id, numero_puesto, nombre_cliente, renta_mensual, estado, pagos_adicionales:cobros_pagos_adicionales(concepto, monto)")
+    .select("id, cobrador_id, mercado_id, numero_puesto, nombre_cliente, renta_mensual, estado, pagos_adicionales:cobros_pagos_adicionales(concepto, monto)")
     .eq("tipo_cobro", "mensual")
     .eq("anio", anio)
     .eq("recibo_generado", false);
@@ -87,19 +89,29 @@ export async function ejecutarCierreAnual(anio: number): Promise<ResultadoCierre
     return { cobrosMarcados: 0, deudasMoraCreadas: 0, puestosActualizados: 0, errores };
   }
 
-  // Agregar por (cobradorId, numeroPuesto, rubroId) -> monto.
+  // Agregar por (mercadoId, numeroPuesto, rubroId) -> monto. Se agrupa por
+  // mercado (no por cobrador) porque el locatario es compartido: si dos
+  // cobradores del mismo mercado guardaron meses distintos del mismo
+  // puesto, deben terminar en una sola deuda de mora, no una por cobrador.
   const agregadoPorRubro: Record<string, AgregadoMora> = {};
+  const cobradorIdPorMercadoNumero: Record<string, string> = {};
 
   for (const cobro of cobrosPendientes) {
-    const cobradorId = cobro.cobrador_id;
+    const mercadoId = cobro.mercado_id;
+    if (!mercadoId) {
+      errores.push(`Cobro sin mercado asignado, se omite: puesto ${cobro.numero_puesto} (cobro ${cobro.id})`);
+      continue;
+    }
     const numeroPuesto = String(cobro.numero_puesto ?? "");
     const nombreCliente = cobro.nombre_cliente ?? "";
+    // cobrador_id se conserva solo para el registro de auditoria en deudas_mora.
+    cobradorIdPorMercadoNumero[`${mercadoId}|${numeroPuesto}`] = cobro.cobrador_id;
 
     const rentaMensual = cobro.renta_mensual ?? 0;
     if (rentaMensual > 0) {
-      const key = `${cobradorId}|${numeroPuesto}|${rubroRentaMora.id}`;
+      const key = `${mercadoId}|${numeroPuesto}|${rubroRentaMora.id}`;
       if (!agregadoPorRubro[key]) {
-        agregadoPorRubro[key] = { monto: 0, rubro: rubroRentaMora, cobradorId, numeroPuesto, nombreCliente };
+        agregadoPorRubro[key] = { monto: 0, rubro: rubroRentaMora, cobradorId: cobro.cobrador_id, mercadoId, numeroPuesto, nombreCliente };
       }
       agregadoPorRubro[key].monto += rentaMensual;
     }
@@ -111,30 +123,30 @@ export async function ejecutarCierreAnual(anio: number): Promise<ResultadoCierre
       const conceptoBase = extraerConcepto(conceptoStr);
       const rubroMora = conceptoBase ? encontrarRubroMora(rubrosMora, conceptoBase) : rubroRentaMora;
       const rubro = rubroMora ?? rubroRentaMora;
-      const key = `${cobradorId}|${numeroPuesto}|${rubro.id}`;
+      const key = `${mercadoId}|${numeroPuesto}|${rubro.id}`;
       if (!agregadoPorRubro[key]) {
-        agregadoPorRubro[key] = { monto: 0, rubro, cobradorId, numeroPuesto, nombreCliente };
+        agregadoPorRubro[key] = { monto: 0, rubro, cobradorId: cobro.cobrador_id, mercadoId, numeroPuesto, nombreCliente };
       }
       agregadoPorRubro[key].monto += monto;
     }
   }
 
-  const puestosPorCobrador: Record<string, { id: string; numero_puesto: string }[]> = {};
-  const obtenerPuestoId = async (cobradorId: string, numeroPuesto: string): Promise<string | null> => {
-    if (!puestosPorCobrador[cobradorId]) {
-      const list = await getPuestosPorAmbulante(cobradorId, anio);
-      puestosPorCobrador[cobradorId] = list.map((p) => ({ id: p.id, numero_puesto: p.numero_puesto }));
+  const puestosPorMercado: Record<string, { id: string; numero_puesto: string }[]> = {};
+  const obtenerPuestoId = async (mercadoId: string, numeroPuesto: string): Promise<string | null> => {
+    if (!puestosPorMercado[mercadoId]) {
+      const list = await getPuestosPorMercado(mercadoId, anio);
+      puestosPorMercado[mercadoId] = list.map((p) => ({ id: p.id, numero_puesto: p.numero_puesto }));
     }
-    const p = puestosPorCobrador[cobradorId].find((x) => x.numero_puesto === numeroPuesto);
+    const p = puestosPorMercado[mercadoId].find((x) => x.numero_puesto === numeroPuesto);
     return p?.id ?? null;
   };
 
   for (const key of Object.keys(agregadoPorRubro)) {
     const item = agregadoPorRubro[key];
     if (item.monto <= 0) continue;
-    const puestoId = await obtenerPuestoId(item.cobradorId, item.numeroPuesto);
+    const puestoId = await obtenerPuestoId(item.mercadoId, item.numeroPuesto);
     if (!puestoId) {
-      errores.push(`Puesto no encontrado: ${item.numeroPuesto} (cobrador ${item.cobradorId})`);
+      errores.push(`Puesto no encontrado: ${item.numeroPuesto} (mercado ${item.mercadoId})`);
       continue;
     }
 
@@ -148,7 +160,8 @@ export async function ejecutarCierreAnual(anio: number): Promise<ResultadoCierre
     if (!deudasExistentes || deudasExistentes.length === 0) {
       const { error: insertError } = await supabase.from("deudas_mora").insert({
         puesto_id: puestoId,
-        cobrador_id: item.cobradorId,
+        cobrador_id: cobradorIdPorMercadoNumero[`${item.mercadoId}|${item.numeroPuesto}`] ?? item.cobradorId,
+        mercado_id: item.mercadoId,
         numero_puesto: item.numeroPuesto,
         nombre_cliente: item.nombreCliente,
         rubro_id: item.rubro.id,

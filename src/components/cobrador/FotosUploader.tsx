@@ -19,7 +19,7 @@ export function FotosUploader({
   multiple,
   uploading,
   setUploading,
-  cobradorId,
+  mercadoId,
   identificador,
   subfolder,
   buttonLabel,
@@ -33,7 +33,8 @@ export function FotosUploader({
   multiple: boolean;
   uploading: boolean;
   setUploading: (v: boolean) => void;
-  cobradorId?: string;
+  /** Carpeta de Cloudinary: el locatario es compartido por el mercado, no por un cobrador individual. */
+  mercadoId?: string;
   identificador: string;
   subfolder?: string;
   buttonLabel: string;
@@ -46,12 +47,12 @@ export function FotosUploader({
   const camaraRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: File[]) => {
-    if (!files.length || !cobradorId) return;
+    if (!files.length || !mercadoId) return;
     setUploading(true);
     try {
       const nuevas: string[] = [];
       for (const file of files) {
-        const url = await subirFotoCloudinary(file, cobradorId, identificador.trim().slice(0, 30) || "locatario", subfolder);
+        const url = await subirFotoCloudinary(file, mercadoId, identificador.trim().slice(0, 30) || "locatario", subfolder);
         nuevas.push(url);
       }
       onAdd(nuevas);

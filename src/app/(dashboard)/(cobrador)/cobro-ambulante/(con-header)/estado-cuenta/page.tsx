@@ -6,7 +6,7 @@ import EstadoDeCuentaCobrador from "@/components/cobrador/EstadoDeCuentaCobrador
 export default function EstadoCuentaPage() {
   const { user, mercadoNombre } = useAuth();
 
-  if (!user) return null;
+  if (!user || !user.mercado_id) return null;
 
   return (
     <EstadoDeCuentaCobrador

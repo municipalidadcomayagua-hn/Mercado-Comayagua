@@ -47,7 +47,7 @@ export type Database = {
           created_at: string
           fecha: string
           id: string
-          mercado_id: string | null
+          mercado_id: string
           mes_aplicado: number | null
           meses: number[] | null
           monto: number
@@ -63,7 +63,7 @@ export type Database = {
           created_at?: string
           fecha?: string
           id?: string
-          mercado_id?: string | null
+          mercado_id: string
           mes_aplicado?: number | null
           meses?: number[] | null
           monto: number
@@ -79,7 +79,7 @@ export type Database = {
           created_at?: string
           fecha?: string
           id?: string
-          mercado_id?: string | null
+          mercado_id?: string
           mes_aplicado?: number | null
           meses?: number[] | null
           monto?: number
@@ -310,7 +310,7 @@ export type Database = {
           fecha_cobro_dia: string | null
           fecha_reporte_completado: string | null
           id: string
-          mercado_id: string | null
+          mercado_id: string
           mes: number | null
           monto: number
           motivo_anulacion: string | null
@@ -343,7 +343,7 @@ export type Database = {
           fecha_cobro_dia?: string | null
           fecha_reporte_completado?: string | null
           id?: string
-          mercado_id?: string | null
+          mercado_id: string
           mes?: number | null
           monto: number
           motivo_anulacion?: string | null
@@ -376,7 +376,7 @@ export type Database = {
           fecha_cobro_dia?: string | null
           fecha_reporte_completado?: string | null
           id?: string
-          mercado_id?: string | null
+          mercado_id?: string
           mes?: number | null
           monto?: number
           motivo_anulacion?: string | null
@@ -555,6 +555,7 @@ export type Database = {
           estado: string
           fecha_vencimiento: string | null
           id: string
+          mercado_id: string
           monto_total: number
           nombre_cliente: string | null
           numero_puesto: string
@@ -570,6 +571,7 @@ export type Database = {
           estado?: string
           fecha_vencimiento?: string | null
           id?: string
+          mercado_id: string
           monto_total?: number
           nombre_cliente?: string | null
           numero_puesto: string
@@ -585,6 +587,7 @@ export type Database = {
           estado?: string
           fecha_vencimiento?: string | null
           id?: string
+          mercado_id?: string
           monto_total?: number
           nombre_cliente?: string | null
           numero_puesto?: string
@@ -600,6 +603,13 @@ export type Database = {
             columns: ["cobrador_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuentas_por_cobrar_mercado_id_fkey"
+            columns: ["mercado_id"]
+            isOneToOne: false
+            referencedRelation: "mercados"
             referencedColumns: ["id"]
           },
         ]
@@ -787,6 +797,7 @@ export type Database = {
           foto_permiso_operacion_urls: string[] | null
           foto_tarjeta_cobro_anual_urls: string[] | null
           id: string
+          mercado_id: string
           nombre_cliente: string
           numero_identidad: string | null
           numero_puesto: string
@@ -809,6 +820,7 @@ export type Database = {
           foto_permiso_operacion_urls?: string[] | null
           foto_tarjeta_cobro_anual_urls?: string[] | null
           id?: string
+          mercado_id: string
           nombre_cliente: string
           numero_identidad?: string | null
           numero_puesto: string
@@ -831,6 +843,7 @@ export type Database = {
           foto_permiso_operacion_urls?: string[] | null
           foto_tarjeta_cobro_anual_urls?: string[] | null
           id?: string
+          mercado_id?: string
           nombre_cliente?: string
           numero_identidad?: string | null
           numero_puesto?: string
@@ -846,6 +859,13 @@ export type Database = {
             columns: ["cobrador_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "puestos_mercado_id_fkey"
+            columns: ["mercado_id"]
+            isOneToOne: false
+            referencedRelation: "mercados"
             referencedColumns: ["id"]
           },
         ]

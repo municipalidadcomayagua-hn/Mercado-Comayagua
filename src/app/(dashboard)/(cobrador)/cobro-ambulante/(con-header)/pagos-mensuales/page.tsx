@@ -5,9 +5,9 @@ import { Box, Button, Card, CardBody, Heading, Modal, ModalBody, ModalContent, M
 import { MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { getPuestosPorAmbulante, updatePuesto } from "@/lib/data/repositories/puestos.repo";
-import { createCobro, getCobroById, getCobrosPorAmbulanteConDetalle, updateCobro } from "@/lib/data/repositories/cobros.repo";
-import { getCuentasPorAmbulante, registrarAbono } from "@/lib/data/repositories/cuentas.repo";
+import { getPuestosPorMercado, updatePuesto } from "@/lib/data/repositories/puestos.repo";
+import { createCobro, getCobroById, getCobrosPorMercadoConDetalle, updateCobro } from "@/lib/data/repositories/cobros.repo";
+import { getCuentasPorMercado, registrarAbono } from "@/lib/data/repositories/cuentas.repo";
 import { RUBRO_RENTA_MENSUAL } from "@/lib/data/types";
 import type { CobroConDetalle, Puesto, Rubro } from "@/lib/data/types";
 import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
@@ -49,13 +49,13 @@ export default function PagosMensualesPage() {
   }, []);
 
   const loadPuestosGuardados = useCallback(async () => {
-    if (!cobradorId) return;
+    if (!mercadoId) return;
     setLoadingPuestos(true);
     try {
-      const puestosGuardados = await getPuestosPorAmbulante(cobradorId, anio);
+      const puestosGuardados = await getPuestosPorMercado(mercadoId, anio);
       let cobrosGuardados: CobroConDetalle[] = [];
       try {
-        cobrosGuardados = await getCobrosPorAmbulanteConDetalle(cobradorId);
+        cobrosGuardados = await getCobrosPorMercadoConDetalle(mercadoId);
       } catch (error) {
         console.warn("No se pudieron cargar los cobros guardados, continuando sin ellos:", error);
       }
@@ -107,7 +107,7 @@ export default function PagosMensualesPage() {
       setPuestos(puestosLocales);
 
       try {
-        const cuentas = await getCuentasPorAmbulante(cobradorId);
+        const cuentas = await getCuentasPorMercado(mercadoId);
         const mapa: Record<string, number> = {};
         for (const c of cuentas) mapa[String(c.numero_puesto)] = c.saldo_pendiente;
         setSaldoPorPuesto(mapa);
@@ -119,11 +119,11 @@ export default function PagosMensualesPage() {
     } finally {
       setLoadingPuestos(false);
     }
-  }, [cobradorId, anio]);
+  }, [mercadoId, anio]);
 
   useEffect(() => {
-    if (cobradorId) loadPuestosGuardados();
-  }, [cobradorId, loadPuestosGuardados]);
+    if (mercadoId) loadPuestosGuardados();
+  }, [mercadoId, loadPuestosGuardados]);
 
   const actualizarPuesto = useCallback((puestoId: string, campo: keyof PuestoLocal, valor: unknown) => {
     setPuestos((prev) => prev.map((p) => (p.id === puestoId ? { ...p, [campo]: valor } : p)));
@@ -276,9 +276,9 @@ export default function PagosMensualesPage() {
 
   const handleCancelarEdicion = useCallback(
     async (puesto: PuestoLocal) => {
-      if (!cobradorId) return;
+      if (!mercadoId) return;
       try {
-        const puestosGuardados = await getPuestosPorAmbulante(cobradorId, anio);
+        const puestosGuardados = await getPuestosPorMercado(mercadoId, anio);
         const original = puestosGuardados.find((p) => p.id === puesto.id);
         if (original) {
           actualizarPuesto(puesto.id, "nombreCliente", original.nombre_cliente);
@@ -291,7 +291,7 @@ export default function PagosMensualesPage() {
         actualizarPuesto(puesto.id, "editando", false);
       }
     },
-    [cobradorId, anio, actualizarPuesto]
+    [mercadoId, anio, actualizarPuesto]
   );
 
   const handleGuardarCambiosPuesto = useCallback(
@@ -308,8 +308,8 @@ export default function PagosMensualesPage() {
           rtn: (puesto.rtn ?? "").trim() || null,
         });
 
-        if (cobradorId) {
-          const cobros = await getCobrosPorAmbulanteConDetalle(cobradorId);
+        if (mercadoId) {
+          const cobros = await getCobrosPorMercadoConDetalle(mercadoId);
           const cobrosDelPuesto = cobros.filter((c) => c.tipo_cobro === "mensual" && c.numero_puesto === puesto.numeroPuesto && c.anio === anio);
           await Promise.all(cobrosDelPuesto.map((c) => updateCobro(c.id, { nombre_cliente: puesto.nombreCliente })));
         }
@@ -321,13 +321,13 @@ export default function PagosMensualesPage() {
         setLoading((prev) => ({ ...prev, [puesto.id]: false }));
       }
     },
-    [cobradorId, anio, actualizarPuesto]
+    [mercadoId, anio, actualizarPuesto]
   );
 
   const handleGuardarCobroMes = useCallback(
     async (puesto: PuestoLocal, mesIndex: number) => {
       const pagoMes = puesto.pagosMensuales[mesIndex];
-      if (!pagoMes || !cobradorId) return;
+      if (!pagoMes || !cobradorId || !mercadoId) return;
 
       let rentaMensual: number;
       let pagosAdicionales: { concepto: string; monto: number }[];
@@ -392,7 +392,7 @@ export default function PagosMensualesPage() {
   const handleVerRecibo = useCallback(
     async (puesto: PuestoLocal, mesIndex: number) => {
       const pagoMes = puesto.pagosMensuales[mesIndex];
-      if (!pagoMes?.cobroId || !cobradorId) return;
+      if (!pagoMes?.cobroId || !cobradorId || !mercadoId) return;
 
       if (!pagoMes.reciboGenerado) {
         const mesesSinPagar: number[] = [];
@@ -439,11 +439,10 @@ export default function PagosMensualesPage() {
             abonos_concepto: Object.entries(abonosNuevos).map(([concepto, monto]) => ({ concepto, monto })),
             recibo_generado: true,
           });
-          await registrarAbono(cobradorId, puesto.numeroPuesto, pendienteTotal, cobradorId, nombreCobrador || undefined, undefined, {
+          await registrarAbono(mercadoId, puesto.numeroPuesto, pendienteTotal, cobradorId, nombreCobrador || undefined, undefined, {
             mesAplicado: mesIndex + 1,
             anio,
             nombreCliente: puesto.nombreCliente,
-            mercadoId,
           });
         } else {
           let rentaMensualVer: number;
@@ -488,6 +487,7 @@ export default function PagosMensualesPage() {
       const puestoCompleto: Puesto = {
         id: puesto.id,
         cobrador_id: cobradorId,
+        mercado_id: mercadoId,
         nombre_cliente: puesto.nombreCliente,
         numero_puesto: puesto.numeroPuesto,
         tipo_puesto: puesto.tipoPuesto,

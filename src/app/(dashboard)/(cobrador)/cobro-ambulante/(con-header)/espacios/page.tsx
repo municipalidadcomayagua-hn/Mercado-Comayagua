@@ -40,9 +40,9 @@ import {
 } from "@chakra-ui/react";
 import { CalendarDays, Edit, Plus, Save, Trash2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { createPuesto, existePuesto, getPuestosPorAmbulante, updatePuesto, eliminarLocatarioCompleto } from "@/lib/data/repositories/puestos.repo";
+import { createPuesto, existePuestoEnMercado, getPuestosPorMercado, updatePuesto, eliminarLocatarioCompleto } from "@/lib/data/repositories/puestos.repo";
 import { createCobro } from "@/lib/data/repositories/cobros.repo";
-import { sumarMontoACuenta } from "@/lib/data/repositories/cuentas.repo";
+import { sumarMontoACuentaPorMercado } from "@/lib/data/repositories/cuentas.repo";
 import { siguienteNumeroRecibo } from "@/lib/data/repositories/folio.repo";
 import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
 import type { Puesto, Rubro } from "@/lib/data/types";
@@ -134,15 +134,15 @@ export default function EspaciosPage() {
   }, []);
 
   useEffect(() => {
-    if (cobradorId) loadEspacios();
+    if (mercadoId) loadEspacios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cobradorId]);
+  }, [mercadoId]);
 
   const loadEspacios = async () => {
-    if (!cobradorId) return;
+    if (!mercadoId) return;
     setLoadingEspacios(true);
     try {
-      const list = await getPuestosPorAmbulante(cobradorId, anio);
+      const list = await getPuestosPorMercado(mercadoId, anio);
       setEspaciosList(list.filter((p) => p.activo !== false));
     } catch (e) {
       console.error(e);
@@ -158,11 +158,11 @@ export default function EspaciosPage() {
   };
 
   const handleSaveNewEspacio = async () => {
-    if (!cobradorId || !draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()) {
+    if (!cobradorId || !mercadoId || !draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()) {
       toast({ title: "Campos requeridos", description: "Complete nombre del locatario, número y tipo de puesto", status: "error", isClosable: true });
       return;
     }
-    const existe = await existePuesto(cobradorId, draftEspacio.numeroPuesto.trim(), anio);
+    const existe = await existePuestoEnMercado(mercadoId, draftEspacio.numeroPuesto.trim(), anio);
     if (existe) {
       toast({ title: "Error", description: `Ya existe un locatario con el número ${draftEspacio.numeroPuesto} para este año`, status: "error", isClosable: true });
       return;
@@ -171,6 +171,7 @@ export default function EspaciosPage() {
     try {
       await createPuesto({
         cobrador_id: cobradorId,
+        mercado_id: mercadoId,
         nombre_cliente: draftEspacio.nombreCliente.trim(),
         numero_puesto: draftEspacio.numeroPuesto.trim(),
         tipo_puesto: draftEspacio.tipoPuesto,
@@ -231,7 +232,7 @@ export default function EspaciosPage() {
   };
 
   const handleGuardarEspacioYDistribuir = async () => {
-    if (!cobradorId || !draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()) {
+    if (!cobradorId || !mercadoId || !draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()) {
       toast({ title: "Campos requeridos", description: "Complete nombre del locatario, número y tipo de puesto", status: "error", isClosable: true });
       return;
     }
@@ -240,7 +241,7 @@ export default function EspaciosPage() {
       toast({ title: "Rubros requeridos", description: "Agregue al menos un rubro del catálogo con monto mayor a 0", status: "error", isClosable: true });
       return;
     }
-    const existe = await existePuesto(cobradorId, draftEspacio.numeroPuesto.trim(), anio);
+    const existe = await existePuestoEnMercado(mercadoId, draftEspacio.numeroPuesto.trim(), anio);
     if (existe) {
       toast({ title: "Error", description: `Ya existe un locatario con el número ${draftEspacio.numeroPuesto} para este año`, status: "error", isClosable: true });
       return;
@@ -249,6 +250,7 @@ export default function EspaciosPage() {
     try {
       await createPuesto({
         cobrador_id: cobradorId,
+        mercado_id: mercadoId,
         nombre_cliente: draftEspacio.nombreCliente.trim(),
         numero_puesto: draftEspacio.numeroPuesto.trim(),
         tipo_puesto: draftEspacio.tipoPuesto,
@@ -278,7 +280,7 @@ export default function EspaciosPage() {
       // para poder crear los 12 cobros en paralelo despues.
       const numerosRecibo: number[] = [];
       for (let i = 0; i < 12; i++) {
-        numerosRecibo.push(await siguienteNumeroRecibo(mercadoId ?? null));
+        numerosRecibo.push(await siguienteNumeroRecibo(mercadoId));
       }
 
       await Promise.all(
@@ -306,7 +308,7 @@ export default function EspaciosPage() {
           )
         )
       );
-      await sumarMontoACuenta(cobradorId, draftEspacio.numeroPuesto.trim(), 12 * montoTotal, draftEspacio.nombreCliente.trim());
+      await sumarMontoACuentaPorMercado(mercadoId, cobradorId, draftEspacio.numeroPuesto.trim(), 12 * montoTotal, draftEspacio.nombreCliente.trim());
 
       toast({
         title: "Espacio y 12 meses creados",
@@ -437,7 +439,7 @@ export default function EspaciosPage() {
                   multiple={false}
                   uploading={subiendoFoto}
                   setUploading={setSubiendoFoto}
-                  cobradorId={cobradorId}
+                  mercadoId={mercadoId}
                   identificador={draftEspacio.numeroPuesto || draftEspacio.nombreCliente}
                   buttonLabel="Subir foto (DNI o cliente)"
                   colorScheme="teal"
@@ -453,7 +455,7 @@ export default function EspaciosPage() {
                   multiple
                   uploading={subiendoFotoPermiso}
                   setUploading={setSubiendoFotoPermiso}
-                  cobradorId={cobradorId}
+                  mercadoId={mercadoId}
                   identificador={draftEspacio.numeroPuesto || draftEspacio.nombreCliente}
                   subfolder="permisos"
                   buttonLabel="Agregar fotos del permiso"
@@ -469,7 +471,7 @@ export default function EspaciosPage() {
                   multiple
                   uploading={subiendoFotoContrato}
                   setUploading={setSubiendoFotoContrato}
-                  cobradorId={cobradorId}
+                  mercadoId={mercadoId}
                   identificador={draftEspacio.numeroPuesto || draftEspacio.nombreCliente}
                   subfolder="contratos"
                   buttonLabel="Agregar fotos del contrato"
@@ -485,7 +487,7 @@ export default function EspaciosPage() {
                   multiple
                   uploading={subiendoFotoTarjetaAnual}
                   setUploading={setSubiendoFotoTarjetaAnual}
-                  cobradorId={cobradorId}
+                  mercadoId={mercadoId}
                   identificador={draftEspacio.numeroPuesto || draftEspacio.nombreCliente}
                   subfolder="tarjeta-anual"
                   buttonLabel="Agregar fotos de la tarjeta anual"

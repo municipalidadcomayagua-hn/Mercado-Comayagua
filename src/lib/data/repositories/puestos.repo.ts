@@ -1,9 +1,13 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Puesto } from "@/lib/data/types";
-import { getCobrosPorAmbulante } from "./cobros.repo";
 
 // Puerto de src/services/puestosService.ts + src/services/eliminarLocatarioService.ts originales.
+//
+// Alcance por mercado (no por cobrador): varios cobradores asignados al
+// mismo mercado ven y cobran los mismos puestos. cobrador_id se conserva en
+// la fila del puesto solo como auditoria ("quien lo registro"), ya no se usa
+// para filtrar lecturas - ver MIGRATION_NOTES.md.
 
 type PuestoInsert = Database["public"]["Tables"]["puestos"]["Insert"];
 type PuestoUpdate = Database["public"]["Tables"]["puestos"]["Update"];
@@ -67,12 +71,13 @@ export async function getPuestoById(id: string): Promise<Puesto | null> {
   return data;
 }
 
-export async function getPuestosPorAmbulante(cobradorId: string, anio?: number): Promise<Puesto[]> {
+/** Puestos visibles para cualquier cobrador asignado a este mercado (locatarios compartidos por todo el equipo). */
+export async function getPuestosPorMercado(mercadoId: string, anio?: number): Promise<Puesto[]> {
   const supabase = createClient();
   let query = supabase
     .from("puestos")
     .select("*")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .order("created_at", { ascending: false });
   if (anio !== undefined) {
     query = query.eq("anio", anio);
@@ -105,9 +110,9 @@ export async function updatePuesto(
   if (error) throw error;
 }
 
-/** Verifica si ya existe un puesto activo con el mismo numero para el mismo cobrador y anio. */
-export async function existePuesto(
-  cobradorId: string,
+/** Verifica si ya existe un puesto activo con el mismo numero en el mismo mercado y anio. */
+export async function existePuestoEnMercado(
+  mercadoId: string,
   numeroPuesto: string,
   anio: number
 ): Promise<boolean> {
@@ -115,7 +120,7 @@ export async function existePuesto(
   const { data, error } = await supabase
     .from("puestos")
     .select("id")
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto)
     .eq("anio", anio)
     .eq("activo", true)
@@ -131,38 +136,33 @@ export async function existePuesto(
  * Elimina un locatario (puesto) y todos sus datos asociados: cobros
  * (mensuales y diarios), cuenta por cobrar, abonos, deudas en mora y sus
  * abonos, y el puesto. Puerto de eliminarLocatarioService.eliminarLocatarioCompleto.
+ *
+ * La cascada es por mercado_id (no por cobrador_id): un puesto compartido
+ * puede tener cobros/abonos registrados por cualquier cobrador del equipo,
+ * y todos deben limpiarse sin importar quien los creo.
  */
 export async function eliminarLocatarioCompleto(puesto: Puesto): Promise<void> {
   if (!puesto.id) throw new Error("El puesto no tiene ID");
-  const cobradorId = puesto.cobrador_id;
+  const mercadoId = puesto.mercado_id;
   const numeroPuesto = puesto.numero_puesto;
   const puestoId = puesto.id;
 
   const supabase = createClient();
 
-  // 1. Eliminar cobros (mensuales y diarios) de este puesto.
-  const cobros = await getCobrosPorAmbulante(cobradorId);
-  const cobrosDelPuesto = cobros.filter((c) => String(c.numero_puesto) === String(numeroPuesto));
-  if (cobrosDelPuesto.length > 0) {
-    const { error } = await supabase
-      .from("cobros")
-      .delete()
-      .in(
-        "id",
-        cobrosDelPuesto.map((c) => c.id)
-      );
-    if (error) throw error;
-  }
+  // 1. Eliminar cobros (mensuales y diarios) de este puesto. Las tablas hijas
+  // (cobros_pagos_adicionales/diarios/abonos_concepto) son ON DELETE CASCADE.
+  const { error: cobrosError } = await supabase.from("cobros").delete().eq("mercado_id", mercadoId).eq("numero_puesto", numeroPuesto);
+  if (cobrosError) throw cobrosError;
 
   // 2. Eliminar cuenta por cobrar.
   await supabase
     .from("cuentas_por_cobrar")
     .delete()
-    .eq("cobrador_id", cobradorId)
+    .eq("mercado_id", mercadoId)
     .eq("numero_puesto", numeroPuesto);
 
   // 3. Eliminar abonos de la cuenta.
-  await supabase.from("abonos").delete().eq("cobrador_id", cobradorId).eq("numero_puesto", numeroPuesto);
+  await supabase.from("abonos").delete().eq("mercado_id", mercadoId).eq("numero_puesto", numeroPuesto);
 
   // 4. Eliminar deudas en mora del puesto y sus abonos (deudas_mora.puesto_id
   // es FK RESTRICT hacia puestos, hay que borrar antes de borrar el puesto).
