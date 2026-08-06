@@ -7,11 +7,11 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 
 // Puerto del panel central (isPanelCentral) de CobroAmbulante.tsx original.
 // "Pagos diarios" se elimino (ver MIGRATION_NOTES.md): todo pago frecuente
-// o parcial se registra ahora como abono en Estado de cuenta.
+// o parcial se registra ahora como abono, desde Pagos o desde Estado de cuenta.
 const COBRADOR_SECTIONS = [
   { path: "/cobro-ambulante/espacios", label: "Locatarios", description: "Registrar locatarios antes de cobros mensuales", icon: MapPin, accent: "teal" },
-  { path: "/cobro-ambulante/pagos-mensuales", label: "Cobros mensuales", description: "Cobros por mes por locatario", icon: Receipt, accent: "cyan" },
-  { path: "/cobro-ambulante/estado-cuenta", label: "Estado de cuenta", description: "Registre pagos y abonos, mensuales o parciales", icon: Wallet, accent: "green" },
+  { path: "/cobro-ambulante/pagos-mensuales", label: "Pagos", description: "Pagos mensuales por rubro o abonos parciales/diarios, por locatario", icon: Receipt, accent: "cyan" },
+  { path: "/cobro-ambulante/estado-cuenta", label: "Estado de cuenta", description: "Resumen y búsqueda de todos los locatarios del mercado", icon: Wallet, accent: "green" },
 ];
 
 export default function CobroAmbulantePanelPage() {

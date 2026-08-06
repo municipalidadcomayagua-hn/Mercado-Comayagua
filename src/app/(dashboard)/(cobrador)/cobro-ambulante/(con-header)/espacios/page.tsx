@@ -45,47 +45,12 @@ import { createCobro } from "@/lib/data/repositories/cobros.repo";
 import { sumarMontoACuentaPorMercado } from "@/lib/data/repositories/cuentas.repo";
 import { siguienteNumeroRecibo } from "@/lib/data/repositories/folio.repo";
 import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
+import { TIPOS_PUESTO } from "@/lib/data/types";
 import type { Puesto, Rubro } from "@/lib/data/types";
 import { FotosUploader } from "@/components/cobrador/FotosUploader";
 import SeccionMoraLocatario from "@/components/cobrador/SeccionMoraLocatario";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// Giros comerciales tipicos de un mercado municipal. tipo_puesto es texto
-// libre en la base de datos (sin restriccion), asi que ampliar esta lista es
-// solo un cambio de UI - no afecta locatarios ya registrados con alguno de
-// los 5 valores originales (Mercadería, Frutas, Verduras, Ropa, Otros), que
-// se conservan tal cual para no romper su clasificacion existente.
-const TIPOS_PUESTO = [
-  "Mercadería",
-  "Frutas",
-  "Verduras",
-  "Granos básicos",
-  "Carnicería",
-  "Pollería",
-  "Pescadería y mariscos",
-  "Lácteos y embutidos",
-  "Panadería y repostería",
-  "Comida preparada / Comedor",
-  "Especias y condimentos",
-  "Abarrotería / Víveres",
-  "Ropa",
-  "Calzado",
-  "Telas y textiles",
-  "Ferretería",
-  "Farmacia / Medicinas",
-  "Veterinaria / Agropecuario",
-  "Artículos de limpieza / Bazar",
-  "Electrodomésticos y electrónica",
-  "Papelería y librería",
-  "Juguetería",
-  "Flores y plantas",
-  "Artesanías",
-  "Bisutería y accesorios",
-  "Cerería / Artículos religiosos",
-  "Servicios (peluquería, reparaciones, cyber)",
-  "Otros",
-];
 
 /** Fila de rubro en el formulario de espacio (no confundir con Rubro = fila del catalogo). */
 interface RubroFilaDraft {

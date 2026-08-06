@@ -66,22 +66,27 @@ export default function PagosMensualesPage() {
           .filter((c) => c.numero_puesto === p.numero_puesto && c.anio === anio && c.mes && c.tipo_cobro === "mensual")
           .forEach((c) => {
             const mesIndex = (c.mes || 1) - 1;
-            const tieneRubros = (c.renta_mensual === 0 || c.renta_mensual == null) && (c.pagos_adicionales?.length ?? 0) > 0;
-            const rubros: RubroFilaDraft[] | undefined = tieneRubros
-              ? c.pagos_adicionales.map((pa) => {
-                  const idx = pa.concepto.indexOf(". ");
-                  const codigo = idx >= 0 ? pa.concepto.slice(0, idx).trim() : "";
-                  const concepto = idx >= 0 ? pa.concepto.slice(idx + 2).trim() : pa.concepto;
-                  return { codigo, concepto, monto: pa.monto.toString() };
-                })
-              : undefined;
+            // Siempre se arma la lista de rubros (catalogo del admin). Los
+            // meses viejos que se crearon con el campo libre "Renta Mensual"
+            // (antes de unificar todo a rubros - ver MIGRATION_NOTES.md) se
+            // muestran como una fila sintetica "Renta mensual" al inicio,
+            // editable/reemplazable con "Cambiar" igual que cualquier otro rubro.
+            const rubros: RubroFilaDraft[] = [
+              ...(c.renta_mensual && c.renta_mensual > 0 ? [{ codigo: "", concepto: "Renta mensual", monto: c.renta_mensual.toString() }] : []),
+              ...(c.pagos_adicionales ?? []).map((pa) => {
+                const idx = pa.concepto.indexOf(". ");
+                const codigo = idx >= 0 ? pa.concepto.slice(0, idx).trim() : "";
+                const concepto = idx >= 0 ? pa.concepto.slice(idx + 2).trim() : pa.concepto;
+                return { codigo, concepto, monto: pa.monto.toString() };
+              }),
+            ];
             const abonosPorConcepto: Record<string, number> = {};
             for (const ac of c.abonos_concepto ?? []) abonosPorConcepto[ac.concepto] = ac.monto;
 
             pagosMensualesGuardados[mesIndex] = {
               rentaMensual: (c.renta_mensual ?? 0).toString(),
               pagosAdicionales: c.pagos_adicionales?.map((pa) => ({ concepto: pa.concepto, monto: pa.monto.toString() })) || [],
-              ...(rubros && { rubros }),
+              rubros,
               guardado: true,
               editando: false,
               cobroId: c.id,
@@ -127,54 +132,6 @@ export default function PagosMensualesPage() {
 
   const actualizarPuesto = useCallback((puestoId: string, campo: keyof PuestoLocal, valor: unknown) => {
     setPuestos((prev) => prev.map((p) => (p.id === puestoId ? { ...p, [campo]: valor } : p)));
-  }, []);
-
-  const actualizarRentaMensual = useCallback((puestoId: string, mesIndex: number, renta: string) => {
-    setPuestos((prev) =>
-      prev.map((puesto) => {
-        if (puesto.id !== puestoId) return puesto;
-        const nuevos = { ...puesto.pagosMensuales };
-        const actual = nuevos[mesIndex] || { rentaMensual: "", pagosAdicionales: [], guardado: false, editando: false };
-        nuevos[mesIndex] = { ...actual, rentaMensual: renta };
-        return { ...puesto, pagosMensuales: nuevos };
-      })
-    );
-  }, []);
-
-  const agregarPagoAdicional = useCallback((puestoId: string, mesIndex: number) => {
-    setPuestos((prev) =>
-      prev.map((puesto) => {
-        if (puesto.id !== puestoId) return puesto;
-        const nuevos = { ...puesto.pagosMensuales };
-        const actual = nuevos[mesIndex] || { rentaMensual: "", pagosAdicionales: [], guardado: false, editando: false };
-        nuevos[mesIndex] = { ...actual, pagosAdicionales: [...actual.pagosAdicionales, { concepto: "", monto: "" }] };
-        return { ...puesto, pagosMensuales: nuevos };
-      })
-    );
-  }, []);
-
-  const eliminarPagoAdicional = useCallback((puestoId: string, mesIndex: number, indexPago: number) => {
-    setPuestos((prev) =>
-      prev.map((puesto) => {
-        if (puesto.id !== puestoId) return puesto;
-        const nuevos = { ...puesto.pagosMensuales };
-        if (nuevos[mesIndex]) nuevos[mesIndex] = { ...nuevos[mesIndex], pagosAdicionales: nuevos[mesIndex].pagosAdicionales.filter((_, i) => i !== indexPago) };
-        return { ...puesto, pagosMensuales: nuevos };
-      })
-    );
-  }, []);
-
-  const actualizarPagoAdicional = useCallback((puestoId: string, mesIndex: number, indexPago: number, campo: "concepto" | "monto", valor: string) => {
-    setPuestos((prev) =>
-      prev.map((puesto) => {
-        if (puesto.id !== puestoId) return puesto;
-        const nuevos = { ...puesto.pagosMensuales };
-        if (nuevos[mesIndex]?.pagosAdicionales[indexPago]) {
-          nuevos[mesIndex] = { ...nuevos[mesIndex], pagosAdicionales: nuevos[mesIndex].pagosAdicionales.map((pa, idx) => (idx === indexPago ? { ...pa, [campo]: valor } : pa)) };
-        }
-        return { ...puesto, pagosMensuales: nuevos };
-      })
-    );
   }, []);
 
   const actualizarRubroMes = useCallback(
@@ -329,19 +286,10 @@ export default function PagosMensualesPage() {
       const pagoMes = puesto.pagosMensuales[mesIndex];
       if (!pagoMes || !cobradorId || !mercadoId) return;
 
-      let rentaMensual: number;
-      let pagosAdicionales: { concepto: string; monto: number }[];
-
-      if (pagoMes.rubros?.length) {
-        if (pagoMes.rubros.some((r) => !r.monto || parseFloat(r.monto) <= 0)) return;
-        rentaMensual = 0;
-        pagosAdicionales = pagoMes.rubros.map((r) => ({ concepto: [r.codigo, r.concepto].filter(Boolean).join(". ") || "Rubro", monto: parseFloat(r.monto) || 0 }));
-      } else {
-        rentaMensual = parseFloat(pagoMes.rentaMensual) || 0;
-        if (rentaMensual <= 0) return;
-        if (pagoMes.pagosAdicionales.some((pa) => !pa.concepto || !pa.monto || parseFloat(pa.monto) <= 0)) return;
-        pagosAdicionales = pagoMes.pagosAdicionales.map((pa) => ({ concepto: pa.concepto, monto: parseFloat(pa.monto) }));
-      }
+      const rubrosDelMes = pagoMes.rubros ?? [];
+      if (rubrosDelMes.length === 0 || rubrosDelMes.some((r) => !r.monto || parseFloat(r.monto) <= 0)) return;
+      const rentaMensual = 0;
+      const pagosAdicionales = rubrosDelMes.map((r) => ({ concepto: [r.codigo, r.concepto].filter(Boolean).join(". ") || "Rubro", monto: parseFloat(r.monto) || 0 }));
 
       const totalAdicionales = pagosAdicionales.reduce((sum, pa) => sum + pa.monto, 0);
       const montoTotal = rentaMensual + totalAdicionales;
@@ -445,18 +393,10 @@ export default function PagosMensualesPage() {
             nombreCliente: puesto.nombreCliente,
           });
         } else {
-          let rentaMensualVer: number;
-          let pagosAdicionalesVer: { concepto: string; monto: number }[];
-          if (pagoMes.rubros?.length) {
-            if (pagoMes.rubros.some((r) => !r.monto || parseFloat(r.monto) <= 0)) return;
-            rentaMensualVer = 0;
-            pagosAdicionalesVer = pagoMes.rubros.map((r) => ({ concepto: [r.codigo, r.concepto].filter(Boolean).join(". ") || "Rubro", monto: parseFloat(r.monto) || 0 }));
-          } else {
-            rentaMensualVer = parseFloat(pagoMes.rentaMensual) || 0;
-            if (rentaMensualVer <= 0) return;
-            if (pagoMes.pagosAdicionales.some((pa) => !pa.concepto || !pa.monto || parseFloat(pa.monto) <= 0)) return;
-            pagosAdicionalesVer = pagoMes.pagosAdicionales.map((pa) => ({ concepto: pa.concepto, monto: parseFloat(pa.monto) }));
-          }
+          const rubrosVer = pagoMes.rubros ?? [];
+          if (rubrosVer.length === 0 || rubrosVer.some((r) => !r.monto || parseFloat(r.monto) <= 0)) return;
+          const rentaMensualVer = 0;
+          const pagosAdicionalesVer = rubrosVer.map((r) => ({ concepto: [r.codigo, r.concepto].filter(Boolean).join(". ") || "Rubro", monto: parseFloat(r.monto) || 0 }));
           const montoTotalVer = rentaMensualVer + pagosAdicionalesVer.reduce((s, pa) => s + pa.monto, 0);
           await updateCobro(pagoMes.cobroId, { renta_mensual: rentaMensualVer, pagos_adicionales: pagosAdicionalesVer, monto: montoTotalVer });
           // Pasa por registrarAbono (en vez de marcar recibo_generado directo) para que
@@ -529,10 +469,10 @@ export default function PagosMensualesPage() {
     <VStack spacing={{ base: 6, md: 8 }} align="stretch">
       <Box>
         <Heading size={{ base: "md", sm: "lg" }} fontWeight="700" color="gray.800">
-          Cobros mensuales
+          Pagos
         </Heading>
         <Text color="gray.500" fontSize={{ base: "xs", sm: "sm" }} mt={1} mb={3}>
-          Edite rubros por mes y genere el recibo. Los locatarios y su distribución en 12 meses se registran en Locatarios.
+          Registre pagos mensuales por rubro o abonos parciales/diarios para cada locatario. Los locatarios y su distribución en 12 meses se registran en Locatarios.
         </Text>
         <Button size="sm" colorScheme="teal" variant="outline" leftIcon={<MapPin size={16} />} onClick={() => router.push("/cobro-ambulante/espacios")}>
           Ir a Locatarios
@@ -549,10 +489,6 @@ export default function PagosMensualesPage() {
             onEditarPuesto={handleEditarPuesto}
             onCancelarEdicion={handleCancelarEdicion}
             onGuardarCambiosPuesto={handleGuardarCambiosPuesto}
-            onActualizarRentaMensual={actualizarRentaMensual}
-            onAgregarPagoAdicional={agregarPagoAdicional}
-            onEliminarPagoAdicional={eliminarPagoAdicional}
-            onActualizarPagoAdicional={actualizarPagoAdicional}
             onCalcularTotalMes={calcularTotalMes}
             onIniciarEdicionMes={iniciarEdicionMes}
             onCancelarEdicionMes={cancelarEdicionMes}
@@ -564,6 +500,11 @@ export default function PagosMensualesPage() {
             rubrosCatalogo={rubrosCatalogo}
             onCalcularDeudaMesesVencidos={calcularDeudaMesesVencidosPuesto}
             saldoPendienteReal={saldoPorPuesto[puesto.numeroPuesto]}
+            mercadoId={mercadoId}
+            cobradorId={cobradorId}
+            cobradorNombre={nombreCobrador}
+            mercadoNombre={mercadoNombre}
+            onAbonoRegistrado={loadPuestosGuardados}
           />
         ))}
       </VStack>

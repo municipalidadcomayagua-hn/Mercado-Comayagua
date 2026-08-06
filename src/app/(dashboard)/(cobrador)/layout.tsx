@@ -11,12 +11,13 @@ import { LoadingScreen } from "@/components/layout/LoadingScreen";
 // "Cierre diario" es nuevo (no existia en el original): resumen +
 // confirmacion del dia (mensuales + abonos) a pedido del usuario.
 // "Pagos diarios" (grilla de 120 espacios desconectada de los locatarios
-// reales) se elimino: todo pago frecuente ahora se registra como abono en
-// Estado de cuenta - ver MIGRATION_NOTES.md.
+// reales) se elimino: todo pago frecuente ahora se registra como abono,
+// desde Estado de cuenta o desde la pestaña "Pago diario / Abono" dentro de
+// Pagos (antes "Cobros mensuales") - ver MIGRATION_NOTES.md.
 const NAV_ITEMS: NavItem[] = [
   { path: "/cobro-ambulante", label: "Inicio", icon: Home, accent: "blue" },
   { path: "/cobro-ambulante/espacios", label: "Locatarios", icon: MapPin, accent: "teal" },
-  { path: "/cobro-ambulante/pagos-mensuales", label: "Cobros mensuales", icon: Receipt, accent: "cyan" },
+  { path: "/cobro-ambulante/pagos-mensuales", label: "Pagos", icon: Receipt, accent: "cyan" },
   { path: "/cobro-ambulante/estado-cuenta", label: "Estado de cuenta", icon: Wallet, accent: "green" },
   { path: "/cobro-ambulante/cierre-diario", label: "Cierre diario", icon: CheckCircle2, accent: "purple" },
 ];

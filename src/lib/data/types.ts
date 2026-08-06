@@ -32,3 +32,40 @@ export const RUBRO_RENTA_MENSUAL = "Renta mensual";
 
 /** Centinela de catalogo global de rubros (portado de RUBROS_GLOBAL_ID = 'GLOBAL'). */
 export const RUBRO_GLOBAL_SENTINEL = null;
+
+// Giros comerciales tipicos de un mercado municipal. tipo_puesto es texto
+// libre en la base de datos (sin restriccion), asi que ampliar esta lista es
+// solo un cambio de UI - no afecta locatarios ya registrados con alguno de
+// los 5 valores originales (Mercadería, Frutas, Verduras, Ropa, Otros), que
+// se conservan tal cual para no romper su clasificacion existente. Se usa
+// tanto al registrar un locatario (Locatarios) como al editarlo (Pagos).
+export const TIPOS_PUESTO = [
+  "Mercadería",
+  "Frutas",
+  "Verduras",
+  "Granos básicos",
+  "Carnicería",
+  "Pollería",
+  "Pescadería y mariscos",
+  "Lácteos y embutidos",
+  "Panadería y repostería",
+  "Comida preparada / Comedor",
+  "Especias y condimentos",
+  "Abarrotería / Víveres",
+  "Ropa",
+  "Calzado",
+  "Telas y textiles",
+  "Ferretería",
+  "Farmacia / Medicinas",
+  "Veterinaria / Agropecuario",
+  "Artículos de limpieza / Bazar",
+  "Electrodomésticos y electrónica",
+  "Papelería y librería",
+  "Juguetería",
+  "Flores y plantas",
+  "Artesanías",
+  "Bisutería y accesorios",
+  "Cerería / Artículos religiosos",
+  "Servicios (peluquería, reparaciones, cyber)",
+  "Otros",
+];

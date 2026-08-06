@@ -588,3 +588,23 @@ Nueva sección que llama `getResumenMercadoDelDia` para cada mercado activo en p
 
 ### Reportes admin
 Se agregó una segunda tabla "Cierres de mercado registrados" (junto a la ya existente "Cierres diarios registrados"), usando `getCierresMercado(desde, hasta)` — mismo patrón que `getCierresDiarios`, para tener el histórico de ambos tipos de cierre en el mismo lugar.
+
+---
+
+## 22. "Pagos" (rename de "Cobros mensuales") + fin del número libre de renta mensual
+
+Tres pedidos sobre la pantalla "Cobros mensuales": (1) el nombre no reflejaba que ahí también se pueden registrar pagos frecuentes/parciales, se pidió renombrarla y que se pueda elegir dentro de la misma pantalla si el pago es mensual o diario/abono; (2) un campo de renta mensual de número libre (no venía del catálogo del admin) debía eliminarse; (3) "Cierre de mercado" no aparecía — confirmado que era porque se probaba del lado del Cobrador (es exclusiva de Admin, funciona como se diseñó, sin cambios).
+
+### Por qué había dos caminos para cargar un mes
+`PuestoCardMensual.tsx` mostraba, por mes, una lista de "Rubros del mes" (selector del catálogo — correcto) **o**, si ese mes no tenía `rubros` cargados (creado a mano sin pasar por "Guardar y distribuir en 12 meses" de Locatarios), un campo libre "Renta Mensual (HNL)" + "Pagos Adicionales" (estos sí ya restringidos al catálogo, solo la renta base no). Se eliminó la rama libre: ahora todo mes se arma siempre eligiendo rubros del catálogo del admin, sin excepción. Río abajo (`Recibo.tsx`, `EstadoDeCuentaCobrador.tsx`/`RegistrarAbonoModal.tsx`, `cierre-anual.repo.ts`, Reportes admin) ya manejaban `renta_mensual = 0` sin problema — era el caso normal para todo lo creado vía "Guardar y distribuir en 12 meses" —, así que no necesitaron cambios.
+
+Para no perder de vista meses ya creados por el camino libre, `loadPuestosGuardados` (`pagos-mensuales/page.tsx`) sintetiza una fila de rubro "Renta mensual" a partir de `cobro.renta_mensual` cuando es mayor a 0, antepuesta a los `pagos_adicionales` — se ve y se puede reemplazar por un rubro real del catálogo con el botón "Cambiar" que ya existía, sin migración de datos.
+
+### "Pagos": rename + pestañas Mensual / Abono
+"Cobros mensuales" pasa a llamarse **"Pagos"** en el menú del cobrador y el panel central (misma URL `/cobro-ambulante/pagos-mensuales`, solo cambia la etiqueta). Dentro de cada locatario, `PuestoCardMensual.tsx` ahora tiene dos pestañas: **"Pago mensual"** (la lista de 12 meses por rubro, igual que antes) y **"Pago diario / Abono"** (saldo pendiente, historial de abonos de ese locatario, y botón para registrar uno nuevo) — así ambos tipos de pago quedan en un solo lugar por locatario, sin tener que ir a Estado de cuenta.
+
+### `RegistrarAbonoModal.tsx`: modal de abono extraído a componente compartido
+La lógica de registrar un abono (selección de meses pendientes/rubro aplicado, validaciones, llamada a `registrarAbono`) vivía inline en `EstadoDeCuentaCobrador.tsx`. Se extrajo a `src/components/cobrador/RegistrarAbonoModal.tsx` (mismo comportamiento, ahora reutilizable) y se usa tanto desde `EstadoDeCuentaCobrador.tsx` (sin cambio de comportamiento) como desde la nueva pestaña "Pago diario / Abono" de `PuestoCardMensual.tsx`.
+
+### `TIPOS_PUESTO` centralizado
+La lista de 28 giros comerciales (agregada en una fase anterior de esta sesión solo en Locatarios) se movió a `src/lib/data/types.ts` junto a `RUBRO_RENTA_MENSUAL`, y ahora también la usa el selector de "Tipo" al editar un locatario desde Pagos (`PuestoCardMensual.tsx`), que hasta ahora se había quedado con las 5 opciones originales.

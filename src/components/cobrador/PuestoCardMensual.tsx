@@ -1,10 +1,42 @@
 "use client";
 
-import { memo } from "react";
-import { Badge, Box, Button, Card, CardBody, Collapse, Divider, FormControl, FormLabel, HStack, Heading, IconButton, Input, Select, SimpleGrid, Text, VStack } from "@chakra-ui/react";
-import { Check, ChevronDown, ChevronUp, Edit, FileText, Plus, Save, Trash2, X, XCircle } from "lucide-react";
-import type { Rubro } from "@/lib/data/types";
-import { RUBRO_RENTA_MENSUAL } from "@/lib/data/types";
+import { memo, useState } from "react";
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardBody,
+  Collapse,
+  Divider,
+  FormControl,
+  FormLabel,
+  HStack,
+  Heading,
+  IconButton,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalOverlay,
+  Select,
+  SimpleGrid,
+  Spinner,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  useDisclosure,
+  VStack,
+} from "@chakra-ui/react";
+import { Check, ChevronDown, ChevronUp, Edit, FileText, Plus, Save, Trash2, Wallet, X, XCircle } from "lucide-react";
+import type { Abono, Rubro } from "@/lib/data/types";
+import { RUBRO_RENTA_MENSUAL, TIPOS_PUESTO } from "@/lib/data/types";
+import { getAbonosPorCuentaEnMercado, type ResultadoRegistroAbono } from "@/lib/data/repositories/cuentas.repo";
+import RegistrarAbonoModal from "@/components/cobrador/RegistrarAbonoModal";
+import ReciboAbono from "@/components/recibos/ReciboAbono";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -58,10 +90,6 @@ interface PuestoCardProps {
   onEditarPuesto: (puesto: PuestoLocal) => void;
   onCancelarEdicion: (puesto: PuestoLocal) => void;
   onGuardarCambiosPuesto: (puesto: PuestoLocal) => void;
-  onActualizarRentaMensual: (puestoId: string, mesIndex: number, renta: string) => void;
-  onAgregarPagoAdicional: (puestoId: string, mesIndex: number) => void;
-  onEliminarPagoAdicional: (puestoId: string, mesIndex: number, indexPago: number) => void;
-  onActualizarPagoAdicional: (puestoId: string, mesIndex: number, indexPago: number, campo: "concepto" | "monto", valor: string) => void;
   onCalcularTotalMes: (puesto: PuestoLocal, mesIndex: number) => number;
   onIniciarEdicionMes: (puestoId: string, mesIndex: number) => void;
   onCancelarEdicionMes: (puestoId: string, mesIndex: number) => void;
@@ -75,6 +103,13 @@ interface PuestoCardProps {
   onCalcularDeudaMesesVencidos: (puesto: PuestoLocal) => number;
   /** Saldo real (incluye abonos parciales); si existe, se usa en lugar del calculo local */
   saldoPendienteReal?: number;
+  /** Para la pestaña "Pago diario / Abono": registrar y listar abonos de este locatario. */
+  mercadoId?: string;
+  cobradorId?: string;
+  cobradorNombre?: string;
+  mercadoNombre?: string | null;
+  /** Se llama despues de registrar un abono (recargar saldos/estado de la pantalla). */
+  onAbonoRegistrado?: () => void;
 }
 
 // Puerto de PuestoCard (CobroAmbulante.tsx original). Se quito la rama de
@@ -88,10 +123,6 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
   onEditarPuesto,
   onCancelarEdicion,
   onGuardarCambiosPuesto,
-  onActualizarRentaMensual,
-  onAgregarPagoAdicional,
-  onEliminarPagoAdicional,
-  onActualizarPagoAdicional,
   onCalcularTotalMes,
   onIniciarEdicionMes,
   onCancelarEdicionMes,
@@ -103,8 +134,38 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
   rubrosCatalogo,
   onCalcularDeudaMesesVencidos,
   saldoPendienteReal,
+  mercadoId,
+  cobradorId,
+  cobradorNombre,
+  mercadoNombre,
+  onAbonoRegistrado,
 }: PuestoCardProps) {
   const deudaMesesVencidos = saldoPendienteReal ?? onCalcularDeudaMesesVencidos(puesto);
+
+  const [historialAbonos, setHistorialAbonos] = useState<Abono[] | null>(null);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const { isOpen: isAbonoModalOpen, onOpen: onAbonoModalOpen, onClose: onAbonoModalClose } = useDisclosure();
+  const { isOpen: isReciboAbonoOpen, onOpen: onReciboAbonoOpen, onClose: onReciboAbonoClose } = useDisclosure();
+  const [reciboAbonoResultado, setReciboAbonoResultado] = useState<ResultadoRegistroAbono | null>(null);
+
+  const cargarHistorialAbonos = async () => {
+    if (!mercadoId) return;
+    setCargandoHistorial(true);
+    try {
+      setHistorialAbonos(await getAbonosPorCuentaEnMercado(mercadoId, puesto.numeroPuesto));
+    } catch {
+      setHistorialAbonos([]);
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
+  const handleAbonoRegistrado = (resultado: ResultadoRegistroAbono) => {
+    setHistorialAbonos(null);
+    onAbonoRegistrado?.();
+    setReciboAbonoResultado(resultado);
+    onReciboAbonoOpen();
+  };
 
   return (
     <Card borderWidth="2px" borderColor="blue.200" overflow="hidden">
@@ -238,11 +299,11 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                     <FormControl isRequired>
                       <FormLabel fontSize={{ base: "sm", md: "md" }}>Tipo</FormLabel>
                       <Select value={puesto.tipoPuesto} onChange={(e) => onActualizarPuesto(puesto.id, "tipoPuesto", e.target.value)} size={{ base: "md", md: "lg" }}>
-                        <option value="Mercadería">Mercadería</option>
-                        <option value="Frutas">Frutas</option>
-                        <option value="Verduras">Verduras</option>
-                        <option value="Ropa">Ropa</option>
-                        <option value="Otros">Otros</option>
+                        {TIPOS_PUESTO.map((tipo) => (
+                          <option key={tipo} value={tipo}>
+                            {tipo}
+                          </option>
+                        ))}
                       </Select>
                     </FormControl>
                     <FormControl>
@@ -272,9 +333,28 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                 </VStack>
               )}
 
-              <VStack spacing={4} align="stretch">
-                {MESES.map((mes, mesIndex) => {
-                  const pagoMes = puesto.pagosMensuales[mesIndex] || { rentaMensual: "", pagosAdicionales: [], guardado: false, editando: false };
+              <Tabs
+                colorScheme="teal"
+                variant="enclosed"
+                isLazy
+                onChange={(index) => {
+                  if (index === 1 && historialAbonos === null) cargarHistorialAbonos();
+                }}
+              >
+                <TabList>
+                  <Tab fontSize={{ base: "xs", sm: "sm", md: "md" }}>Pago mensual</Tab>
+                  <Tab fontSize={{ base: "xs", sm: "sm", md: "md" }}>
+                    <HStack spacing={1}>
+                      <Wallet size={14} />
+                      <Text>Pago diario / Abono</Text>
+                    </HStack>
+                  </Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel px={0}>
+                    <VStack spacing={4} align="stretch">
+                      {MESES.map((mes, mesIndex) => {
+                  const pagoMes = puesto.pagosMensuales[mesIndex] || { rentaMensual: "", pagosAdicionales: [], rubros: [], guardado: false, editando: false };
                   const totalMes = onCalcularTotalMes(puesto, mesIndex);
                   const estaEditando = Boolean(pagoMes.editando);
                   const estaGuardado = Boolean(pagoMes.guardado) && !estaEditando;
@@ -366,185 +446,90 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                             );
                           })()}
 
-                        {pagoMes.rubros?.length ? (
-                          <Box>
-                            <HStack justify="space-between" mb={2}>
-                              <FormLabel fontSize={{ base: "xs", md: "sm" }} mb={0}>
-                                Rubros del mes
-                              </FormLabel>
-                              {rubrosCatalogo.length > 0 && (estaEditando || (estaGuardado && !estaPagado)) && !tieneAbonosParciales && (
-                                <Button size="xs" colorScheme="green" leftIcon={<Plus size={14} />} onClick={() => onAgregarRubroMes(puesto.id, mesIndex)}>
-                                  Agregar rubro
-                                </Button>
-                              )}
-                            </HStack>
-                            {rubrosCatalogo.length === 0 ? (
-                              <Text fontSize="xs" color="orange.600" fontStyle="italic">
-                                No hay rubros creados. Configure el catálogo de rubros en Admin. Solo se permiten rubros precargados.
-                              </Text>
-                            ) : (
-                              <VStack spacing={2} align="stretch">
-                                {pagoMes.rubros.map((rubro, rubroIdx) => {
-                                  const tieneRubro = !!(rubro.rubroId || rubro.codigo || rubro.concepto);
-                                  const rubroCat = rubro.rubroId ? rubrosCatalogo.find((r) => r.id === rubro.rubroId) : undefined;
-                                  const codigoDisplay = rubroCat?.codigo ?? rubro.codigo;
-                                  const conceptoDisplay = rubroCat?.concepto ?? rubro.concepto;
-                                  const puedeEditar = !estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado);
-                                  const otrasFilas = (pagoMes.rubros || []).filter((_, i) => i !== rubroIdx);
-                                  const rubrosIdsYaUsados = otrasFilas.map((r) => r.rubroId).filter(Boolean);
-                                  const codigosYaUsados = otrasFilas.map((r) => (r.rubroId ? rubrosCatalogo.find((c) => c.id === r.rubroId)?.codigo : r.codigo)).filter(Boolean);
-                                  const opcionesRubro = rubrosCatalogo.filter((r) => {
-                                    if (r.id === rubro.rubroId) return true;
-                                    if (rubrosIdsYaUsados.includes(r.id)) return false;
-                                    if (r.codigo && codigosYaUsados.includes(r.codigo)) return false;
-                                    return true;
-                                  });
-                                  return (
-                                    <Box key={`rubro-mes-${puesto.id}-${mesIndex}-${rubroIdx}`} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200">
-                                      {tieneRubro ? (
-                                        <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" gap={1}>
-                                          <Text fontSize="sm" fontWeight="medium" noOfLines={2}>
-                                            <Box as="span" fontWeight="bold" color="blue.600">
-                                              {codigoDisplay}
-                                            </Box>{" "}
-                                            {conceptoDisplay}
-                                          </Text>
-                                          {puedeEditar && (
-                                            <HStack>
-                                              <Button size="xs" variant="ghost" colorScheme="gray" onClick={() => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", "")}>
-                                                Cambiar
-                                              </Button>
-                                              <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
-                                            </HStack>
-                                          )}
-                                        </HStack>
-                                      ) : (
-                                        <HStack mb={2} spacing={2}>
-                                          <Select size="sm" placeholder="Seleccionar rubro..." value="" onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", e.target.value)} isDisabled={!puedeEditar}>
-                                            {opcionesRubro.map((r) => (
-                                              <option key={r.id} value={r.id}>
-                                                {r.concepto}
-                                              </option>
-                                            ))}
-                                          </Select>
-                                          {puedeEditar && (
-                                            <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
-                                          )}
-                                        </HStack>
-                                      )}
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Ingresar valor"
-                                        value={rubro.monto}
-                                        onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "monto", e.target.value)}
-                                        isDisabled={estaPagado || tieneAbonosParciales}
-                                        size="sm"
-                                      />
-                                    </Box>
-                                  );
-                                })}
-                              </VStack>
-                            )}
-                          </Box>
-                        ) : (
-                          <>
-                            <FormControl isRequired>
-                              <FormLabel fontSize={{ base: "xs", md: "sm" }}>Renta Mensual (HNL)</FormLabel>
-                              <Input
-                                type="number"
-                                value={pagoMes.rentaMensual || ""}
-                                onChange={(e) => onActualizarRentaMensual(puesto.id, mesIndex, e.target.value)}
-                                placeholder="0.00"
-                                isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)}
-                                size={{ base: "sm", md: "md" }}
-                              />
-                            </FormControl>
-                            <Box>
-                              <HStack justify="space-between" mb={2}>
-                                <FormLabel fontSize={{ base: "xs", md: "sm" }} mb={0}>
-                                  Pagos Adicionales
-                                </FormLabel>
-                                {!estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado) && (
-                                  <Button size="xs" colorScheme="green" leftIcon={<Plus size={14} />} onClick={() => onAgregarPagoAdicional(puesto.id, mesIndex)}>
-                                    Agregar
-                                  </Button>
-                                )}
-                              </HStack>
-                              <VStack spacing={2} align="stretch">
-                                {rubrosCatalogo.length === 0 ? (
-                                  <Text fontSize="xs" color="orange.600" fontStyle="italic">
-                                    Configure el catálogo de rubros en Admin para agregar pagos adicionales. Solo se permiten rubros precargados.
-                                  </Text>
-                                ) : (
-                                  <>
-                                    {pagoMes.pagosAdicionales.map((pagoAdicional, indexPago) => {
-                                      const conceptoStr = (pagoAdicional.concepto || "").trim();
-                                      const idxPunto = conceptoStr.indexOf(". ");
-                                      const codigoFromConcepto = idxPunto >= 0 ? conceptoStr.slice(0, idxPunto).trim() : "";
-                                      const rubroSeleccionado = codigoFromConcepto ? rubrosCatalogo.find((r) => (r.codigo || "").trim() === codigoFromConcepto) : undefined;
-                                      const otrosConceptos = pagoMes.pagosAdicionales
-                                        .filter((_, i) => i !== indexPago)
-                                        .map((pa) => {
-                                          const s = (pa.concepto || "").trim();
-                                          const i = s.indexOf(". ");
-                                          return i >= 0 ? s.slice(0, i).trim() : "";
-                                        })
-                                        .filter(Boolean);
-                                      const opcionesPago = rubrosCatalogo.filter((r) => r.id === rubroSeleccionado?.id || !otrosConceptos.includes((r.codigo || "").trim()));
-                                      return (
-                                        <HStack key={`${puesto.id}-${mesIndex}-${indexPago}`} spacing={2} align="center">
-                                          <Select
-                                            size="sm"
-                                            placeholder="Seleccionar rubro del catálogo..."
-                                            value={rubroSeleccionado?.id || ""}
-                                            onChange={(e) => {
-                                              const id = e.target.value;
-                                              const r = rubrosCatalogo.find((x) => x.id === id);
-                                              if (r) onActualizarPagoAdicional(puesto.id, mesIndex, indexPago, "concepto", [r.codigo, r.concepto].filter(Boolean).join(". ") || r.concepto);
-                                            }}
-                                            isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)}
-                                            flex={2}
-                                          >
-                                            {opcionesPago.map((r) => (
-                                              <option key={r.id} value={r.id}>
-                                                {r.codigo} – {r.concepto}
-                                              </option>
-                                            ))}
-                                          </Select>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Monto"
-                                            value={pagoAdicional.monto || ""}
-                                            onChange={(e) => onActualizarPagoAdicional(puesto.id, mesIndex, indexPago, "monto", e.target.value)}
-                                            isDisabled={estaPagado || tieneAbonosParciales || (estaGuardado && !estaEditando)}
-                                            size={{ base: "sm", md: "md" }}
-                                            flex={1}
-                                            maxW="120px"
-                                          />
-                                          {!estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado) && (
-                                            <IconButton aria-label="Eliminar pago adicional" icon={<Trash2 size={16} />} size="sm" colorScheme="red" variant="ghost" onClick={() => onEliminarPagoAdicional(puesto.id, mesIndex, indexPago)} />
-                                          )}
-                                        </HStack>
-                                      );
-                                    })}
-                                    {pagoMes.pagosAdicionales.length === 0 && (
-                                      <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                                        No hay pagos adicionales. Use &quot;Agregar&quot; y seleccione un rubro del catálogo.
-                                      </Text>
-                                    )}
-                                  </>
-                                )}
-                              </VStack>
-                            </Box>
-                            {!estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado) && (
-                              <Button size="sm" variant="outline" colorScheme="teal" leftIcon={<Plus size={14} />} onClick={() => onAgregarRubroMes(puesto.id, mesIndex)}>
-                                Definir rubros solo para este mes
+                        <Box>
+                          <HStack justify="space-between" mb={2}>
+                            <FormLabel fontSize={{ base: "xs", md: "sm" }} mb={0}>
+                              Rubros del mes
+                            </FormLabel>
+                            {rubrosCatalogo.length > 0 && (estaEditando || (estaGuardado && !estaPagado)) && !tieneAbonosParciales && (
+                              <Button size="xs" colorScheme="green" leftIcon={<Plus size={14} />} onClick={() => onAgregarRubroMes(puesto.id, mesIndex)}>
+                                Agregar rubro
                               </Button>
                             )}
-                          </>
-                        )}
+                          </HStack>
+                          {rubrosCatalogo.length === 0 ? (
+                            <Text fontSize="xs" color="orange.600" fontStyle="italic">
+                              No hay rubros creados. Configure el catálogo de rubros en Admin. Solo se permiten rubros precargados.
+                            </Text>
+                          ) : !pagoMes.rubros?.length ? (
+                            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                              No hay rubros para este mes. Use &quot;Agregar rubro&quot; y seleccione uno del catálogo.
+                            </Text>
+                          ) : (
+                            <VStack spacing={2} align="stretch">
+                              {pagoMes.rubros.map((rubro, rubroIdx) => {
+                                const tieneRubro = !!(rubro.rubroId || rubro.codigo || rubro.concepto);
+                                const rubroCat = rubro.rubroId ? rubrosCatalogo.find((r) => r.id === rubro.rubroId) : undefined;
+                                const codigoDisplay = rubroCat?.codigo ?? rubro.codigo;
+                                const conceptoDisplay = rubroCat?.concepto ?? rubro.concepto;
+                                const puedeEditar = !estaPagado && !tieneAbonosParciales && (estaEditando || estaGuardado);
+                                const otrasFilas = (pagoMes.rubros || []).filter((_, i) => i !== rubroIdx);
+                                const rubrosIdsYaUsados = otrasFilas.map((r) => r.rubroId).filter(Boolean);
+                                const codigosYaUsados = otrasFilas.map((r) => (r.rubroId ? rubrosCatalogo.find((c) => c.id === r.rubroId)?.codigo : r.codigo)).filter(Boolean);
+                                const opcionesRubro = rubrosCatalogo.filter((r) => {
+                                  if (r.id === rubro.rubroId) return true;
+                                  if (rubrosIdsYaUsados.includes(r.id)) return false;
+                                  if (r.codigo && codigosYaUsados.includes(r.codigo)) return false;
+                                  return true;
+                                });
+                                return (
+                                  <Box key={`rubro-mes-${puesto.id}-${mesIndex}-${rubroIdx}`} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200">
+                                    {tieneRubro ? (
+                                      <HStack justify="space-between" align="center" mb={2} flexWrap="wrap" gap={1}>
+                                        <Text fontSize="sm" fontWeight="medium" noOfLines={2}>
+                                          <Box as="span" fontWeight="bold" color="blue.600">
+                                            {codigoDisplay}
+                                          </Box>{" "}
+                                          {conceptoDisplay}
+                                        </Text>
+                                        {puedeEditar && (
+                                          <HStack>
+                                            <Button size="xs" variant="ghost" colorScheme="gray" onClick={() => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", "")}>
+                                              Cambiar
+                                            </Button>
+                                            <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
+                                          </HStack>
+                                        )}
+                                      </HStack>
+                                    ) : (
+                                      <HStack mb={2} spacing={2}>
+                                        <Select size="sm" placeholder="Seleccionar rubro..." value="" onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "rubroId", e.target.value)} isDisabled={!puedeEditar}>
+                                          {opcionesRubro.map((r) => (
+                                            <option key={r.id} value={r.id}>
+                                              {r.concepto}
+                                            </option>
+                                          ))}
+                                        </Select>
+                                        {puedeEditar && (
+                                          <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => onEliminarRubroMes(puesto.id, mesIndex, rubroIdx)} />
+                                        )}
+                                      </HStack>
+                                    )}
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Ingresar valor"
+                                      value={rubro.monto}
+                                      onChange={(e) => onActualizarRubroMes(puesto.id, mesIndex, rubroIdx, "monto", e.target.value)}
+                                      isDisabled={estaPagado || tieneAbonosParciales}
+                                      size="sm"
+                                    />
+                                  </Box>
+                                );
+                              })}
+                            </VStack>
+                          )}
+                        </Box>
 
                         <HStack spacing={2} justify="flex-end">
                           {estaGuardado && !estaEditando && estaPagado && (
@@ -584,7 +569,7 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                               <Button
                                 colorScheme="blue"
                                 onClick={() => onGuardarCobroMes(puesto, mesIndex)}
-                                isDisabled={loading[puesto.id] || (pagoMes.rubros?.length ? totalMes <= 0 : !pagoMes.rentaMensual || parseFloat(pagoMes.rentaMensual) <= 0)}
+                                isDisabled={loading[puesto.id] || totalMes <= 0}
                                 isLoading={loading[puesto.id]}
                                 leftIcon={<Save size={16} />}
                                 size={{ base: "sm", md: "md" }}
@@ -603,22 +588,112 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                     </Box>
                   );
                 })}
-              </VStack>
+                    </VStack>
 
-              <Divider />
+                    <Divider my={4} />
 
-              <HStack justify="flex-end" pt={2}>
-                <Text fontSize={{ base: "md", md: "lg" }} fontWeight="bold">
-                  Deuda (meses vencidos):
-                </Text>
-                <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold" color="orange.600">
-                  {formatCurrency(deudaMesesVencidos)}
-                </Text>
-              </HStack>
+                    <HStack justify="flex-end" pt={2}>
+                      <Text fontSize={{ base: "md", md: "lg" }} fontWeight="bold">
+                        Deuda (meses vencidos):
+                      </Text>
+                      <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold" color="orange.600">
+                        {formatCurrency(deudaMesesVencidos)}
+                      </Text>
+                    </HStack>
+                  </TabPanel>
+
+                  <TabPanel px={0}>
+                    <VStack spacing={4} align="stretch">
+                      <Box bg="orange.50" p={4} borderRadius="md" borderWidth="1px" borderColor="orange.200">
+                        <HStack justify="space-between" flexWrap="wrap" gap={3}>
+                          <Box>
+                            <Text fontSize="sm" color="gray.600">
+                              Saldo pendiente
+                            </Text>
+                            <Text fontSize={{ base: "lg", md: "xl" }} fontWeight="bold" color="orange.600">
+                              {formatCurrency(deudaMesesVencidos)}
+                            </Text>
+                          </Box>
+                          {mercadoId && cobradorId && (
+                            <Button
+                              colorScheme="teal"
+                              leftIcon={<Plus size={16} />}
+                              onClick={onAbonoModalOpen}
+                              isDisabled={deudaMesesVencidos <= 0}
+                              size={{ base: "sm", md: "md" }}
+                            >
+                              Registrar abono
+                            </Button>
+                          )}
+                        </HStack>
+                      </Box>
+
+                      <Box>
+                        <Text fontSize="sm" fontWeight="bold" color="gray.700" mb={2}>
+                          Abonos registrados
+                        </Text>
+                        {cargandoHistorial ? (
+                          <HStack>
+                            <Spinner size="sm" />
+                            <Text fontSize="sm" color="gray.500">
+                              Cargando...
+                            </Text>
+                          </HStack>
+                        ) : !historialAbonos || historialAbonos.length === 0 ? (
+                          <Text fontSize="sm" color="gray.500" fontStyle="italic">
+                            Sin abonos registrados todavía. Use pagos diarios, cada dos días o semanales para ir abonando la renta mensual.
+                          </Text>
+                        ) : (
+                          <VStack align="stretch" spacing={2}>
+                            {historialAbonos.map((a) => (
+                              <HStack key={a.id} justify="space-between" fontSize="sm" p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200">
+                                <Box minW={0}>
+                                  <Text>{new Date(a.fecha).toLocaleDateString("es-HN", { day: "2-digit", month: "2-digit", year: "numeric" })}</Text>
+                                  {a.referencia && (
+                                    <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                                      {a.referencia}
+                                    </Text>
+                                  )}
+                                </Box>
+                                <Text fontWeight="bold" flexShrink={0}>
+                                  {formatCurrency(a.monto)}
+                                </Text>
+                              </HStack>
+                            ))}
+                          </VStack>
+                        )}
+                      </Box>
+                    </VStack>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
             </VStack>
           </Collapse>
         </VStack>
       </CardBody>
+
+      {mercadoId && cobradorId && (
+        <RegistrarAbonoModal
+          isOpen={isAbonoModalOpen}
+          onClose={onAbonoModalClose}
+          mercadoId={mercadoId}
+          numeroPuesto={puesto.numeroPuesto}
+          nombreCliente={puesto.nombreCliente}
+          saldoPendiente={deudaMesesVencidos}
+          cobradorId={cobradorId}
+          cobradorNombre={cobradorNombre ?? ""}
+          onRegistrado={handleAbonoRegistrado}
+        />
+      )}
+
+      <Modal isOpen={isReciboAbonoOpen} onClose={onReciboAbonoClose} size={{ base: "full", md: "lg" }} isCentered>
+        <ModalOverlay />
+        <ModalContent maxW={{ base: "100vw", md: "32rem" }} mx={{ base: 0, md: "auto" }}>
+          <ModalBody py={4}>
+            {reciboAbonoResultado && <ReciboAbono resultado={reciboAbonoResultado} cobradorNombre={cobradorNombre ?? ""} mercadoNombre={mercadoNombre} onClose={onReciboAbonoClose} />}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Card>
   );
 });
