@@ -51,6 +51,42 @@ import SeccionMoraLocatario from "@/components/cobrador/SeccionMoraLocatario";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Giros comerciales tipicos de un mercado municipal. tipo_puesto es texto
+// libre en la base de datos (sin restriccion), asi que ampliar esta lista es
+// solo un cambio de UI - no afecta locatarios ya registrados con alguno de
+// los 5 valores originales (Mercadería, Frutas, Verduras, Ropa, Otros), que
+// se conservan tal cual para no romper su clasificacion existente.
+const TIPOS_PUESTO = [
+  "Mercadería",
+  "Frutas",
+  "Verduras",
+  "Granos básicos",
+  "Carnicería",
+  "Pollería",
+  "Pescadería y mariscos",
+  "Lácteos y embutidos",
+  "Panadería y repostería",
+  "Comida preparada / Comedor",
+  "Especias y condimentos",
+  "Abarrotería / Víveres",
+  "Ropa",
+  "Calzado",
+  "Telas y textiles",
+  "Ferretería",
+  "Farmacia / Medicinas",
+  "Veterinaria / Agropecuario",
+  "Artículos de limpieza / Bazar",
+  "Electrodomésticos y electrónica",
+  "Papelería y librería",
+  "Juguetería",
+  "Flores y plantas",
+  "Artesanías",
+  "Bisutería y accesorios",
+  "Cerería / Artículos religiosos",
+  "Servicios (peluquería, reparaciones, cyber)",
+  "Otros",
+];
+
 /** Fila de rubro en el formulario de espacio (no confundir con Rubro = fila del catalogo). */
 interface RubroFilaDraft {
   codigo: string;
@@ -90,6 +126,52 @@ const DRAFT_VACIO: DraftEspacio = {
   fotoContratoArrendamientoUrls: [],
   fotoTarjetaCobroAnualUrls: [],
 };
+
+// Borrador persistido: el formulario de "Nuevo/Editar locatario" se guarda en
+// localStorage mientras esta abierto. Al tomar una foto con la camara del
+// celular, el navegador puede quedar en segundo plano y el sistema operativo
+// (sobre todo en gama baja/media) lo mata para liberar memoria; al volver, la
+// pagina recarga desde cero y sin esto se perdia todo lo escrito. Con el
+// borrador en localStorage (no en memoria), sobrevive a ese recargue.
+const DRAFT_STORAGE_KEY = "mc_draft_espacio_v1";
+const DRAFT_MAX_EDAD_MS = 12 * 60 * 60 * 1000; // 12 horas: mas alla de eso se descarta por viejo, no por relevante.
+
+interface DraftEspacioPersistido {
+  cobradorId: string;
+  mercadoId: string;
+  editEspacioId: string | null;
+  draftEspacio: DraftEspacio;
+  draftRubrosEspacio: RubroFilaDraft[];
+  guardadoEn: number;
+}
+
+function guardarDraftEnStorage(data: DraftEspacioPersistido) {
+  try {
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // localStorage puede fallar (modo privado, cuota llena) - no es critico, se sigue trabajando en memoria.
+  }
+}
+
+function borrarDraftDeStorage() {
+  try {
+    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch {
+    // ver nota arriba
+  }
+}
+
+function leerDraftDeStorage(): DraftEspacioPersistido | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as DraftEspacioPersistido;
+    if (!data || Date.now() - (data.guardadoEn ?? 0) > DRAFT_MAX_EDAD_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 // Puerto de la vista "Locatarios" (VistaEspaciosAsignados) de CobroAmbulante.tsx original.
 export default function EspaciosPage() {
@@ -138,6 +220,44 @@ export default function EspaciosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mercadoId]);
 
+  // Al entrar a la pantalla, si hay un borrador sin guardar de este mismo
+  // cobrador/mercado (ver DRAFT_STORAGE_KEY), se restaura automaticamente en
+  // vez de perderse.
+  useEffect(() => {
+    if (!cobradorId || !mercadoId) return;
+    const draft = leerDraftDeStorage();
+    if (!draft || draft.cobradorId !== cobradorId || draft.mercadoId !== mercadoId) return;
+    setDraftEspacio(draft.draftEspacio);
+    setDraftRubrosEspacio(draft.draftRubrosEspacio);
+    if (draft.editEspacioId) {
+      setEditEspacioId(draft.editEspacioId);
+    } else {
+      setShowNewEspacioForm(true);
+    }
+    toast({
+      title: "Borrador recuperado",
+      description: "Se restauró la información sin guardar del locatario que estaba registrando.",
+      status: "info",
+      duration: 6000,
+      isClosable: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cobradorId, mercadoId]);
+
+  // Autoguardado del borrador mientras el formulario esta abierto.
+  useEffect(() => {
+    if (!cobradorId || !mercadoId) return;
+    if (!showNewEspacioForm && !editEspacioId) return;
+    guardarDraftEnStorage({
+      cobradorId,
+      mercadoId,
+      editEspacioId,
+      draftEspacio,
+      draftRubrosEspacio,
+      guardadoEn: Date.now(),
+    });
+  }, [cobradorId, mercadoId, editEspacioId, showNewEspacioForm, draftEspacio, draftRubrosEspacio]);
+
   const loadEspacios = async () => {
     if (!mercadoId) return;
     setLoadingEspacios(true);
@@ -155,6 +275,7 @@ export default function EspaciosPage() {
   const limpiarDraft = () => {
     setDraftEspacio(DRAFT_VACIO);
     setDraftRubrosEspacio([]);
+    borrarDraftDeStorage();
   };
 
   const handleSaveNewEspacio = async () => {
@@ -395,11 +516,11 @@ export default function EspaciosPage() {
               <FormControl isRequired>
                 <FormLabel fontSize={{ base: "sm", md: "md" }}>Tipo</FormLabel>
                 <Select value={draftEspacio.tipoPuesto} onChange={(e) => setDraftEspacio((d) => ({ ...d, tipoPuesto: e.target.value }))} placeholder="Seleccione" size={{ base: "md", md: "lg" }}>
-                  <option value="Mercadería">Mercadería</option>
-                  <option value="Frutas">Frutas</option>
-                  <option value="Verduras">Verduras</option>
-                  <option value="Ropa">Ropa</option>
-                  <option value="Otros">Otros</option>
+                  {TIPOS_PUESTO.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
                 </Select>
               </FormControl>
               <FormControl>

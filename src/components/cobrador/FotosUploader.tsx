@@ -5,6 +5,71 @@ import { Box, Button, HStack, IconButton, Image, Menu, MenuButton, MenuItem, Men
 import { Camera, ChevronDown, ImagePlus, X } from "lucide-react";
 import { subirFotoCloudinary } from "@/lib/cloudinary/cloudinaryService";
 
+const COMPRESION_DIMENSION_MAX = 1600;
+const COMPRESION_CALIDAD = 0.82;
+const COMPRESION_UMBRAL_BYTES = 700 * 1024; // no vale la pena comprimir fotos que ya son livianas
+
+/**
+ * Redimensiona/recomprime una foto a JPEG antes de subirla. Las fotos que
+ * salen directo de la camara de un celular pueden pesar 8-20MB (varios
+ * miles de pixeles de lado); cargar eso en memoria para el FormData del
+ * upload es una causa tipica de que el navegador se quede sin memoria y el
+ * sistema operativo mate la pestaña/app a medio subir, sobre todo en
+ * celulares de gama baja. Si algo falla (formato no soportado, etc.) se
+ * sube el archivo original tal cual - nunca se bloquea la subida por esto.
+ */
+function comprimirImagen(file: File, maxDim = COMPRESION_DIMENSION_MAX, calidad = COMPRESION_CALIDAD): Promise<File> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size <= COMPRESION_UMBRAL_BYTES) {
+      resolve(file);
+      return;
+    }
+    const img = new window.Image();
+    const objectUrl = URL.createObjectURL(file);
+    const terminar = (resultado: File) => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(resultado);
+    };
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        if (width <= maxDim && height <= maxDim) {
+          terminar(file);
+          return;
+        }
+        const escala = maxDim / Math.max(width, height);
+        width = Math.round(width * escala);
+        height = Math.round(height * escala);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          terminar(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              terminar(file);
+              return;
+            }
+            const nombre = file.name.replace(/\.\w+$/, "") + ".jpg";
+            terminar(new File([blob], nombre, { type: "image/jpeg" }));
+          },
+          "image/jpeg",
+          calidad
+        );
+      } catch {
+        terminar(file);
+      }
+    };
+    img.onerror = () => terminar(file);
+    img.src = objectUrl;
+  });
+}
+
 /**
  * Widget de subida de fotos (camara o galeria) con preview y opcion de
  * quitar. Consolida los 4 bloques casi identicos del CobroAmbulante.tsx
@@ -49,16 +114,37 @@ export function FotosUploader({
   const handleFiles = async (files: File[]) => {
     if (!files.length || !mercadoId) return;
     setUploading(true);
+    // Se sube y se agrega una por una (no se espera a que terminen todas)
+    // para que una foto que ya se subio con exito quede guardada en el
+    // borrador aunque otra falle despues o la app se interrumpa a medio
+    // subir el lote - antes se perdia todo el lote si una fallaba.
+    let subidas = 0;
+    let fallidas = 0;
+    let ultimoError: string | undefined;
     try {
-      const nuevas: string[] = [];
       for (const file of files) {
-        const url = await subirFotoCloudinary(file, mercadoId, identificador.trim().slice(0, 30) || "locatario", subfolder);
-        nuevas.push(url);
+        try {
+          const comprimida = await comprimirImagen(file);
+          const url = await subirFotoCloudinary(comprimida, mercadoId, identificador.trim().slice(0, 30) || "locatario", subfolder);
+          onAdd([url]);
+          subidas++;
+        } catch (err) {
+          fallidas++;
+          ultimoError = err instanceof Error ? err.message : undefined;
+        }
       }
-      onAdd(nuevas);
-      toast({ title: `${nuevas.length} foto(s) subida(s)`, status: "success", isClosable: true });
-    } catch (err) {
-      toast({ title: "Error al subir", description: err instanceof Error ? err.message : undefined, status: "error", isClosable: true });
+      if (subidas > 0) {
+        toast({ title: `${subidas} foto(s) subida(s)`, status: "success", isClosable: true });
+      }
+      if (fallidas > 0) {
+        toast({
+          title: fallidas === 1 ? "1 foto no se pudo subir" : `${fallidas} fotos no se pudieron subir`,
+          description: ultimoError || "Intente de nuevo, puede ser un problema de conexión.",
+          status: "error",
+          duration: 6000,
+          isClosable: true,
+        });
+      }
     } finally {
       setUploading(false);
     }
