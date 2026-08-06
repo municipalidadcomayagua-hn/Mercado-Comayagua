@@ -458,7 +458,16 @@ export default function PagosMensualesPage() {
             pagosAdicionalesVer = pagoMes.pagosAdicionales.map((pa) => ({ concepto: pa.concepto, monto: parseFloat(pa.monto) }));
           }
           const montoTotalVer = rentaMensualVer + pagosAdicionalesVer.reduce((s, pa) => s + pa.monto, 0);
-          await updateCobro(pagoMes.cobroId, { renta_mensual: rentaMensualVer, pagos_adicionales: pagosAdicionalesVer, monto: montoTotalVer, recibo_generado: true });
+          await updateCobro(pagoMes.cobroId, { renta_mensual: rentaMensualVer, pagos_adicionales: pagosAdicionalesVer, monto: montoTotalVer });
+          // Pasa por registrarAbono (en vez de marcar recibo_generado directo) para que
+          // quede una fila en `abonos` con la fecha real del pago - Cierre diario y el
+          // historial de abonos del locatario dependen de eso. registrarAbono ya marca
+          // recibo_generado internamente para los meses indicados.
+          await registrarAbono(mercadoId, puesto.numeroPuesto, montoTotalVer, cobradorId, nombreCobrador || undefined, undefined, {
+            meses: [mesIndex + 1],
+            anio,
+            nombreCliente: puesto.nombreCliente,
+          });
         }
 
         setPuestos((prev) =>

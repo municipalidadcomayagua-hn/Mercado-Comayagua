@@ -287,25 +287,6 @@ export async function getCobrosPorMercado(mercadoId: string): Promise<Cobro[]> {
   return data;
 }
 
-/** Incluye pagos_diarios: PagosDiarios.tsx necesita el detalle por puesto para reconstruir el estado guardado. Por mercado: cualquier cobrador del equipo puede ver/continuar el reporte del dia. */
-export async function getCobrosDiariosPorMercadoYFecha(mercadoId: string, fecha: Date): Promise<CobroConDetalle[]> {
-  const inicioDia = new Date(fecha);
-  inicioDia.setHours(0, 0, 0, 0);
-  const finDia = new Date(fecha);
-  finDia.setHours(23, 59, 59, 999);
-
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("cobros")
-    .select(SELECT_CON_DETALLE)
-    .eq("mercado_id", mercadoId)
-    .eq("es_cobro_diario", true)
-    .gte("fecha_cobro_dia", inicioDia.toISOString())
-    .lte("fecha_cobro_dia", finDia.toISOString());
-  if (error) throw error;
-  return data as unknown as CobroConDetalle[];
-}
-
 /** Anula todos los cobros mensuales activos de un puesto (al desactivar locatario). */
 export async function anularCobrosMensualesPorPuestoEnMercado(
   mercadoId: string,

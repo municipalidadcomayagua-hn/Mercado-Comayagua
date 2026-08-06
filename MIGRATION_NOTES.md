@@ -539,3 +539,31 @@ Con `mercado_id` obligatorio en todo el flujo, un cobrador sin mercado asignado 
 
 ### Detalle de implementación: auditoría vs. alcance en `registrarAbono`
 `registrarAbono` recibe ahora `mercadoId` como primer parámetro (alcance de la cuenta) y sigue recibiendo por separado `quienRegistraId` (auditoría — quién de los cobradores del mercado hizo el abono). El insert en `abonos.cobrador_id` usa `quienRegistraId`, no `mercadoId` — mezclar los dos habría insertado un UUID de mercado en una columna con FK a `perfiles`.
+
+---
+
+## 20. Eliminación de "Pagos diarios": todo pago pasa por abonos en Estado de cuenta
+
+El equipo reportó que "Pagos diarios" era un concepto erróneo: un locatario ya registrado (ej. Juan, puesto #1, con renta mensual) a veces paga diario, cada dos días o semanal, y esos pagos parciales deben abonar su renta mensual — no vivir aparte.
+
+**Causa raíz**: "Pagos diarios" era una cuadrícula de 120 espacios numerados totalmente desconectada de los locatarios reales — el propio código lo documentaba: *"los cobros diarios no afectan cuentas_por_cobrar"*. Un pago registrado ahí nunca bajaba el saldo pendiente del locatario en Estado de cuenta.
+
+La función correcta ya existía: `registrarAbono` (Estado de cuenta) ya abona un monto parcial contra la cuenta real del locatario y genera un recibo individual (`ReciboAbono`) por cada uno. Se eliminó el camino paralelo que la esquivaba, en vez de construir algo nuevo.
+
+**Confirmado con el usuario**: todos los que pagan (diario o no) ya son locatarios registrados con renta mensual — no hay ambulantes sin registrar, así que se pudo eliminar "Pagos diarios" sin perder ninguna capacidad real.
+
+### Qué se eliminó
+- La pantalla `/cobro-ambulante/pagos-diarios`, sus entradas de nav (menú del cobrador y panel central), sus componentes de recibo (`ReciboDiario.tsx`, `ReciboDiarioGlobal.tsx`) y `getCobrosDiariosPorMercadoYFecha` (`cobros.repo.ts`), su único caller.
+- **No se tocó** el esquema: columnas `es_cobro_diario`/`fecha_cobro_dia`/`reporte_diario_completado`, tabla `cobros_pagos_diarios`, ni el soporte de `pagos_diarios` en `createCobro`/`updateCobro`. Sin migración — cualquier dato histórico de "Pagos diarios" que ya exista en producción se preserva, simplemente deja de alimentarse con filas nuevas.
+
+### Unificación: todo pago mensual pasa por `abonos`, no solo los parciales
+En Cobros mensuales, el botón de "pago rápido de un mes completo" (`handleVerRecibo`, cuando no había abonos previos) marcaba `recibo_generado=true` directo con `updateCobro`, sin pasar por la tabla `abonos`. Se cambió para que llame a `registrarAbono(..., { meses: [mesIndex+1], anio })` — el mismo mecanismo que ya usa Estado de cuenta para "pagar meses completos". Resultado: **toda** liquidación de un mes, completa o parcial, desde cualquier pantalla, termina creando una fila en `abonos` con la fecha real del pago.
+
+### Cierre diario: se rompía con este cambio si no se arreglaba
+`getResumenDelDia` (cuadre de caja personal del cobrador) sumaba cobros `es_cobro_diario=true` con `reporte_diario_completado=true` para su bucket "diario". Sin "Pagos diarios" generando esas filas, ese bucket quedaría permanentemente en 0 — el cobrador cerraría el día viendo cobros de $0 aunque hubiera cobrado dinero real vía abonos. Se reescribió para sumar **los abonos de hoy del cobrador** (tabla `abonos`, filtrada por `cobrador_id` y `fecha` de hoy) en vez de cobros diarios — `abonos.fecha` es la fecha real del pago, a diferencia de `cobros.fecha_cobro` (que se fija cuando se crea la fila del mes, no cuando se paga). La interfaz `ResumenDelDia` renombra `totalDiario`/`cantidadDiario` a `totalAbonos`/`cantidadAbonos`. Las columnas de BD `cierres_diarios.total_diario`/`cantidad_diario` se conservan sin migración — solo cambia qué valor se guarda ahí, y las pantallas (Cierre diario del cobrador, tabla de cierres en Reportes del admin) muestran la etiqueta "Abonos" en vez de "Diarios"/"Pagos diarios".
+
+### Estado de cuenta: buscador nuevo
+Con "Pagos diarios" fuera, Estado de cuenta pasa a ser el único lugar para registrar cualquier pago frecuente. Se agregó un buscador (nombre o número de puesto, filtro en memoria sobre la lista ya cargada) porque la tabla plana sin buscador era impráctica para un mercado de cientos de locatarios.
+
+### Fuera de alcance, encontrado de paso (confirmado con el usuario, no se toca aquí)
+Reportes y Dashboard (admin) cuentan los pagos mensuales por `cobros.fecha_cobro` — la fecha en que se creó la fila del mes (ej. al distribuir el locatario en 12 meses), no la fecha real en que se cobró. Un pago de agosto hecho en agosto puede aparecer contado bajo la fecha de registro del locatario (meses antes) en vez de agosto. Preexistente, no causado por este cambio; queda pendiente para una fase futura.

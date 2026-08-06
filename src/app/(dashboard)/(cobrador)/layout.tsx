@@ -2,19 +2,21 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Home, MapPin, Receipt, CalendarDays, Wallet, CheckCircle2 } from "lucide-react";
+import { Home, MapPin, Receipt, Wallet, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { LoadingScreen } from "@/components/layout/LoadingScreen";
 
 // Puerto de AmbulanteLayout.tsx + ProtectedRoute (App.tsx) del original.
 // "Cierre diario" es nuevo (no existia en el original): resumen +
-// confirmacion del dia (mensuales + diarios juntos) a pedido del usuario.
+// confirmacion del dia (mensuales + abonos) a pedido del usuario.
+// "Pagos diarios" (grilla de 120 espacios desconectada de los locatarios
+// reales) se elimino: todo pago frecuente ahora se registra como abono en
+// Estado de cuenta - ver MIGRATION_NOTES.md.
 const NAV_ITEMS: NavItem[] = [
   { path: "/cobro-ambulante", label: "Inicio", icon: Home, accent: "blue" },
   { path: "/cobro-ambulante/espacios", label: "Locatarios", icon: MapPin, accent: "teal" },
   { path: "/cobro-ambulante/pagos-mensuales", label: "Cobros mensuales", icon: Receipt, accent: "cyan" },
-  { path: "/cobro-ambulante/pagos-diarios", label: "Pagos diarios", icon: CalendarDays, accent: "orange" },
   { path: "/cobro-ambulante/estado-cuenta", label: "Estado de cuenta", icon: Wallet, accent: "green" },
   { path: "/cobro-ambulante/cierre-diario", label: "Cierre diario", icon: CheckCircle2, accent: "purple" },
 ];

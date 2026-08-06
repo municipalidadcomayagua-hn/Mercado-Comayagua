@@ -9,16 +9,13 @@ import type { CierreDiario } from "@/lib/data/types";
 
 const formatCurrency = (n: number) => `L. ${n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const RESUMEN_VACIO: ResumenDelDia = { totalMensual: 0, cantidadMensual: 0, totalDiario: 0, cantidadDiario: 0, totalGeneral: 0 };
+const RESUMEN_VACIO: ResumenDelDia = { totalMensual: 0, cantidadMensual: 0, totalAbonos: 0, cantidadAbonos: 0, totalGeneral: 0 };
 
 /**
  * Cierre diario general del cobrador (nuevo, no existia en el original): un
  * solo lugar para ver y confirmar todo lo cobrado en el dia (mensuales +
- * diarios juntos). Los totales usan el mismo criterio que ya usa el
- * reporte de resumen del admin (recibo_generado / reporte_diario_completado),
- * asi que lo que aparece aqui es exactamente lo que el admin vera reflejado
- * ahi - "cerrar el dia" guarda un snapshot auditable en cierres_diarios,
- * no cambia esos cobros.
+ * abonos). "cerrar el dia" guarda un snapshot auditable en cierres_diarios,
+ * no cambia esos cobros/abonos.
  */
 export default function CierreDiarioPage() {
   const { user } = useAuth();
@@ -82,7 +79,7 @@ export default function CierreDiarioPage() {
         <Card borderRadius="2xl" borderWidth="1px" borderColor="gray.100" boxShadow="0 4px 24px -4px rgba(0,0,0,0.08)">
           <CardBody>
             <Text fontSize="sm" color="gray.600" mb={4}>
-              Resumen de todo lo cobrado hoy (mensuales con recibo generado + reporte diario finalizado). Si falta algo, complételo en Cobros mensuales o Pagos diarios antes de cerrar.
+              Resumen de todo lo cobrado hoy (cobros mensuales con recibo generado + abonos registrados hoy). Si falta algo, complételo en Cobros mensuales o Estado de cuenta antes de cerrar.
             </Text>
             <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4} mb={6}>
               <Stat>
@@ -95,12 +92,12 @@ export default function CierreDiarioPage() {
                 </Text>
               </Stat>
               <Stat>
-                <StatLabel>Pagos diarios</StatLabel>
+                <StatLabel>Abonos registrados</StatLabel>
                 <StatNumber fontSize="xl" color="orange.600">
-                  {formatCurrency(resumen.totalDiario)}
+                  {formatCurrency(resumen.totalAbonos)}
                 </StatNumber>
                 <Text fontSize="xs" color="gray.500">
-                  {resumen.cantidadDiario} reporte(s) finalizado(s)
+                  {resumen.cantidadAbonos} abono(s)
                 </Text>
               </Stat>
               <Stat>
@@ -127,7 +124,7 @@ export default function CierreDiarioPage() {
               w={{ base: "full", sm: "auto" }}
               onClick={handleCerrarDia}
               isLoading={cerrando}
-              isDisabled={resumen.totalGeneral === 0 && resumen.cantidadMensual === 0 && resumen.cantidadDiario === 0}
+              isDisabled={resumen.totalGeneral === 0 && resumen.cantidadMensual === 0 && resumen.cantidadAbonos === 0}
             >
               {cierreExistente ? "Actualizar cierre del día" : "Cerrar día"}
             </Button>

@@ -1,17 +1,26 @@
 import { createClient } from "@/lib/supabase/client";
 import type { CierreDiario } from "@/lib/data/types";
 
-// Cierre diario general del cobrador (mensuales + diarios juntos). Los
-// totales se calculan con el mismo criterio que el reporte de resumen del
-// admin (reportes/resumen-cobros): mensuales con recibo_generado=true,
-// diarios con reporte_diario_completado=true - ver MIGRATION_NOTES si
-// aplica. Esta tabla solo guarda el snapshot del momento del cierre.
+// Cierre diario general del cobrador. Los totales se calculan de dos
+// fuentes: cobros mensuales creados y pagados el mismo dia (recibo_generado=true,
+// fecha_cobro de hoy - caso de un mes que no existia y se cobro directo hoy),
+// y abonos registrados hoy (tabla `abonos`, que tiene la fecha real del pago).
+//
+// "Pagos diarios" (grilla de 120 espacios, desconectada de los locatarios)
+// se elimino - ver MIGRATION_NOTES.md. Todo pago frecuente o parcial ahora
+// pasa por registrarAbono (Estado de cuenta, o el pago rapido de un mes en
+// Cobros mensuales, que tambien se unifico para pasar por ahi), asi que
+// `abonos.fecha` es la fuente confiable de "que se cobro hoy": a diferencia
+// de `cobros.fecha_cobro` (que se fija cuando se crea la fila del mes, no
+// cuando se paga), `abonos.fecha` siempre es el momento real del pago.
+//
+// Esta tabla (cierres_diarios) solo guarda el snapshot del momento del cierre.
 
 export interface ResumenDelDia {
   totalMensual: number;
   cantidadMensual: number;
-  totalDiario: number;
-  cantidadDiario: number;
+  totalAbonos: number;
+  cantidadAbonos: number;
   totalGeneral: number;
 }
 
@@ -23,37 +32,42 @@ function rangoDelDia(fecha: Date): { inicio: Date; fin: Date } {
   return { inicio, fin };
 }
 
-/** Resumen de lo cobrado en el dia por un cobrador (mensuales + diarios), para la pantalla de Cierre diario. */
+/** Resumen de lo cobrado en el dia por un cobrador (mensuales creados y pagados hoy + abonos de hoy), para la pantalla de Cierre diario. */
 export async function getResumenDelDia(cobradorId: string, fecha: Date = new Date()): Promise<ResumenDelDia> {
   const { inicio, fin } = rangoDelDia(fecha);
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("cobros")
-    .select("tipo_cobro, es_cobro_diario, recibo_generado, reporte_diario_completado, monto")
-    .eq("cobrador_id", cobradorId)
-    .eq("estado", "activo")
-    .gte("fecha_cobro", inicio.toISOString())
-    .lt("fecha_cobro", fin.toISOString());
-  if (error) throw error;
+
+  const [{ data: cobros, error: cobrosError }, { data: abonos, error: abonosError }] = await Promise.all([
+    supabase
+      .from("cobros")
+      .select("tipo_cobro, recibo_generado, monto")
+      .eq("cobrador_id", cobradorId)
+      .eq("estado", "activo")
+      .gte("fecha_cobro", inicio.toISOString())
+      .lt("fecha_cobro", fin.toISOString()),
+    supabase
+      .from("abonos")
+      .select("monto")
+      .eq("cobrador_id", cobradorId)
+      .gte("fecha", inicio.toISOString())
+      .lt("fecha", fin.toISOString()),
+  ]);
+  if (cobrosError) throw cobrosError;
+  if (abonosError) throw abonosError;
 
   let totalMensual = 0;
   let cantidadMensual = 0;
-  let totalDiario = 0;
-  let cantidadDiario = 0;
-
-  for (const c of data) {
-    if (c.es_cobro_diario) {
-      if (c.reporte_diario_completado) {
-        totalDiario += c.monto ?? 0;
-        cantidadDiario += 1;
-      }
-    } else if (c.tipo_cobro === "mensual" && c.recibo_generado) {
+  for (const c of cobros) {
+    if (c.tipo_cobro === "mensual" && c.recibo_generado) {
       totalMensual += c.monto ?? 0;
       cantidadMensual += 1;
     }
   }
 
-  return { totalMensual, cantidadMensual, totalDiario, cantidadDiario, totalGeneral: totalMensual + totalDiario };
+  const totalAbonos = abonos.reduce((s, a) => s + (a.monto ?? 0), 0);
+  const cantidadAbonos = abonos.length;
+
+  return { totalMensual, cantidadMensual, totalAbonos, cantidadAbonos, totalGeneral: totalMensual + totalAbonos };
 }
 
 /** Cierre ya registrado para ese cobrador en esa fecha (si existe). */
@@ -70,7 +84,13 @@ export async function getCierreDelDia(cobradorId: string, fecha: Date = new Date
   return data;
 }
 
-/** Registra (o actualiza, si ya se habia cerrado antes hoy) el cierre del dia. */
+/**
+ * Registra (o actualiza, si ya se habia cerrado antes hoy) el cierre del dia.
+ * Las columnas `total_diario`/`cantidad_diario` de `cierres_diarios` se
+ * conservan tal cual (evita una migracion) pero ahora guardan el total/
+ * cantidad de abonos del dia, no de "Pagos diarios" (eliminado) - ver
+ * MIGRATION_NOTES.md.
+ */
 export async function cerrarDia(
   cobradorId: string,
   mercadoId: string | null,
@@ -87,10 +107,10 @@ export async function cerrarDia(
         mercado_id: mercadoId,
         fecha: fechaStr,
         total_mensual: resumen.totalMensual,
-        total_diario: resumen.totalDiario,
+        total_diario: resumen.totalAbonos,
         total_general: resumen.totalGeneral,
         cantidad_mensual: resumen.cantidadMensual,
-        cantidad_diario: resumen.cantidadDiario,
+        cantidad_diario: resumen.cantidadAbonos,
         cerrado_en: new Date().toISOString(),
       },
       { onConflict: "cobrador_id,fecha" }

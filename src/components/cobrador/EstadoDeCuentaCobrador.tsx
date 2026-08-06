@@ -38,8 +38,10 @@ import {
   Checkbox,
   Wrap,
   WrapItem,
+  InputGroup,
+  InputLeftElement,
 } from "@chakra-ui/react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
   getCuentasPorMercado,
   getResumenMercado,
@@ -82,8 +84,22 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
   const [mesAplicadoSeleccionado, setMesAplicadoSeleccionado] = useState<number | "">("");
   const [rubroAplicadoSeleccionado, setRubroAplicadoSeleccionado] = useState<string>("");
   const [reciboAbonoResultado, setReciboAbonoResultado] = useState<ResultadoRegistroAbono | null>(null);
+  const [busqueda, setBusqueda] = useState("");
 
   const totalPorMesesSeleccionados = mesesPendientes.filter((mp) => mesesSeleccionados.includes(mp.mes)).reduce((sum, mp) => sum + mp.monto, 0) || 0;
+
+  // Con "Pagos diarios" eliminado (ver MIGRATION_NOTES.md), esta pantalla es
+  // el unico lugar para registrar cualquier pago frecuente/parcial - en un
+  // mercado con decenas o cientos de locatarios, encontrar uno mientras se
+  // camina cobrando necesita un buscador, no solo la tabla completa.
+  const busquedaNormalizada = busqueda.trim().toLowerCase();
+  const cuentasFiltradas = busquedaNormalizada
+    ? cuentas.filter(
+        (c) =>
+          (c.nombre_cliente ?? "").toLowerCase().includes(busquedaNormalizada) ||
+          String(c.numero_puesto ?? "").toLowerCase().includes(busquedaNormalizada)
+      )
+    : cuentas;
 
   useEffect(() => {
     if (mesesSeleccionados.length > 0 && totalPorMesesSeleccionados > 0) {
@@ -295,6 +311,19 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
             <Text color="gray.500">No hay cuentas por cobrar. Los cobros mensuales se irán reflejando aquí.</Text>
           ) : (
             <>
+              <InputGroup mb={4} maxW={{ base: "100%", sm: "360px" }}>
+                <InputLeftElement pointerEvents="none">
+                  <Search size={16} color="var(--chakra-colors-gray-400)" />
+                </InputLeftElement>
+                <Input placeholder="Buscar por nombre o número de puesto" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+              </InputGroup>
+
+              {cuentasFiltradas.length === 0 ? (
+                <Text color="gray.500" fontStyle="italic">
+                  No se encontraron locatarios para &quot;{busqueda}&quot;.
+                </Text>
+              ) : (
+                <>
               <TableContainer overflowX="auto" maxW="100%" display={{ base: "none", lg: "block" }} sx={{ WebkitOverflowScrolling: "touch" }}>
                 <Table size="sm" minW="640px">
                   <Thead>
@@ -310,7 +339,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {cuentas.map((c) => (
+                    {cuentasFiltradas.map((c) => (
                       <Tr key={c.id}>
                         <Td fontWeight="medium">{c.numero_puesto}</Td>
                         <Td>{c.nombre_cliente || "-"}</Td>
@@ -337,7 +366,7 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
               </TableContainer>
 
               <VStack spacing={3} align="stretch" display={{ base: "flex", lg: "none" }}>
-                {cuentas.map((c) => (
+                {cuentasFiltradas.map((c) => (
                   <Box key={c.id} p={4} borderRadius="lg" borderWidth="1px" borderColor="gray.100">
                     <HStack justify="space-between" align="flex-start">
                       <Box minW={0}>
@@ -383,6 +412,8 @@ export default function EstadoDeCuentaCobrador({ cobradorId, cobradorNombre, mer
                   </Box>
                 ))}
               </VStack>
+                </>
+              )}
             </>
           )}
         </CardBody>

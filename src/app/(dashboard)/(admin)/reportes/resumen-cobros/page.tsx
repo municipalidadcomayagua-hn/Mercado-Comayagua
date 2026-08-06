@@ -472,7 +472,7 @@ export default function ReporteResumenCobrosPage() {
                       <Th>Cobrador</Th>
                       <Th>Mercado</Th>
                       <Th isNumeric>Mensuales</Th>
-                      <Th isNumeric>Diarios</Th>
+                      <Th isNumeric>Abonos</Th>
                       <Th isNumeric>Total</Th>
                       <Th>Cerrado a las</Th>
                     </Tr>
