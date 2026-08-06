@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Users, Store, ListOrdered, FileText, Calendar } from "lucide-react";
+import { LayoutDashboard, Users, Store, ListOrdered, FileText, Calendar, ClipboardCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { DashboardShell, type NavItem } from "@/components/layout/DashboardShell";
 import { LoadingScreen } from "@/components/layout/LoadingScreen";
@@ -13,6 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: "/dashboard", label: "Panel", icon: LayoutDashboard, accent: "blue" },
   { path: "/cobradores", label: "Cobradores", icon: Users, accent: "teal" },
   { path: "/mercados", label: "Mercados", icon: Store, accent: "green" },
+  { path: "/cierre-mercado", label: "Cierre de mercado", icon: ClipboardCheck, accent: "pink" },
   { path: "/catalogo-rubros", label: "Catálogo de rubros", icon: ListOrdered, accent: "cyan" },
   {
     path: "/reportes/resumen-cobros",

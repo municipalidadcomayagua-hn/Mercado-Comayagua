@@ -13,26 +13,42 @@ import {
   StatHelpText,
   StatLabel,
   StatNumber,
+  Table,
+  TableContainer,
+  Tbody,
+  Td,
   Text,
+  Th,
+  Thead,
+  Tr,
   VStack,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { Calendar, ChevronRight, FileText, ListOrdered, Store, Users } from "lucide-react";
+import { Calendar, ChevronRight, ClipboardCheck, FileText, ListOrdered, Store, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { getCobradoresActivos } from "@/lib/data/repositories/cobradores.repo";
 import { getMercadosActivos } from "@/lib/data/repositories/mercados.repo";
 import { getEstadisticasDelMes } from "@/lib/data/repositories/cobros.repo";
 import { getTotalDeudaPendienteSistema } from "@/lib/data/repositories/cuentas.repo";
+import { getResumenMercadoDelDia } from "@/lib/data/repositories/cierre-mercado.repo";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const SECTIONS = [
   { path: "/cobradores", label: "Cobradores", description: "Gestionar cobradores y asignaciones", icon: Users, accent: "teal" },
   { path: "/mercados", label: "Mercados", description: "Administrar mercados", icon: Store, accent: "green" },
+  { path: "/cierre-mercado", label: "Cierre de mercado", description: "Resumen de todos los cobradores de un mercado y confirmación del cierre del día", icon: ClipboardCheck, accent: "pink" },
   { path: "/catalogo-rubros", label: "Catálogo de rubros", description: "Números de cuenta, conceptos y tipo (Vigente/Mora)", icon: ListOrdered, accent: "cyan" },
   { path: "/reportes/resumen-cobros", label: "Reportes – Resumen por rubro y mercado", description: "Resumen por catálogo de rubro (ej. 101.01) y mercado, con desglose por cliente, fecha y recibo", icon: FileText, accent: "purple" },
   { path: "/cierre-anual", label: "Cierre anual (mora)", description: "Pasar cobros pendientes a estado En mora al finalizar el año", icon: Calendar, accent: "orange" },
 ];
+
+interface TotalMercadoHoy {
+  mercadoId: string;
+  mercadoNombre: string;
+  totalHoy: number;
+  cantidadCobradores: number;
+}
 
 /**
  * Puerto de Dashboard.tsx original. Se omite el boton "Limpiar base de
@@ -51,6 +67,8 @@ export default function DashboardPage() {
     totalMes: 0,
     deudaPendiente: 0,
   });
+  const [totalesPorMercado, setTotalesPorMercado] = useState<TotalMercadoHoy[]>([]);
+  const [loadingMercados, setLoadingMercados] = useState(true);
 
   useEffect(() => {
     const hoy = new Date();
@@ -72,6 +90,23 @@ export default function DashboardPage() {
           totalMes: statsMes.total,
           deudaPendiente,
         });
+
+        // Total de hoy por mercado (mismo calculo que "Cierre de mercado",
+        // aqui solo se lee el resumen, no se confirma ningun cierre).
+        setLoadingMercados(true);
+        try {
+          const resumenes = await Promise.all(mercados.map((m) => getResumenMercadoDelDia(m.id, hoy)));
+          setTotalesPorMercado(
+            mercados.map((m, i) => ({
+              mercadoId: m.id,
+              mercadoNombre: m.nombre,
+              totalHoy: resumenes[i].totalGeneral,
+              cantidadCobradores: resumenes[i].cantidadCobradores,
+            }))
+          );
+        } finally {
+          setLoadingMercados(false);
+        }
       } catch (error) {
         console.error("Error cargando estadisticas del dashboard:", error);
       } finally {
@@ -136,6 +171,63 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
       </SimpleGrid>
+
+      <Card bg="white" borderWidth="1px" borderColor="gray.100" shadow="sm">
+        <CardBody>
+          <HStack justify="space-between" mb={4} flexWrap="wrap" gap={2}>
+            <Heading size={{ base: "sm", md: "md" }} fontWeight="600" color="gray.700">
+              Totales por mercado (hoy)
+            </Heading>
+            <Text fontSize="xs" color="gray.500">
+              Cobros mensuales + abonos de hoy, en vivo
+            </Text>
+          </HStack>
+          {loadingMercados ? (
+            <HStack justify="center" py={4}>
+              <Spinner size="sm" />
+              <Text fontSize="sm" color="gray.500">
+                Calculando...
+              </Text>
+            </HStack>
+          ) : totalesPorMercado.length === 0 ? (
+            <Text color="gray.500" fontSize="sm" fontStyle="italic">
+              No hay mercados activos.
+            </Text>
+          ) : (
+            <TableContainer overflowX="auto" maxW="100%" sx={{ WebkitOverflowScrolling: "touch" }}>
+              <Table size="sm">
+                <Thead>
+                  <Tr>
+                    <Th>Mercado</Th>
+                    <Th isNumeric>Cobradores hoy</Th>
+                    <Th isNumeric>Total de hoy</Th>
+                    <Th></Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {totalesPorMercado.map((m) => (
+                    <Tr
+                      key={m.mercadoId}
+                      cursor="pointer"
+                      _hover={{ bg: "pink.50" }}
+                      onClick={() => router.push(`/cierre-mercado?mercado=${m.mercadoId}`)}
+                    >
+                      <Td fontWeight="medium">{m.mercadoNombre}</Td>
+                      <Td isNumeric>{m.cantidadCobradores}</Td>
+                      <Td isNumeric fontWeight="bold" color="pink.600">
+                        {formatCurrency(m.totalHoy)}
+                      </Td>
+                      <Td>
+                        <ChevronRight size={16} color="var(--chakra-colors-gray-400)" />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardBody>
+      </Card>
 
       <Box w="full">
         <Heading size={{ base: "sm", md: "md" }} fontWeight="600" color="gray.700" mb={{ base: 4, md: 5 }}>

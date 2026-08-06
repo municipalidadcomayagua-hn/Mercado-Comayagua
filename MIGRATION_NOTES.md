@@ -567,3 +567,24 @@ Con "Pagos diarios" fuera, Estado de cuenta pasa a ser el único lugar para regi
 
 ### Fuera de alcance, encontrado de paso (confirmado con el usuario, no se toca aquí)
 Reportes y Dashboard (admin) cuentan los pagos mensuales por `cobros.fecha_cobro` — la fecha en que se creó la fila del mes (ej. al distribuir el locatario en 12 meses), no la fecha real en que se cobró. Un pago de agosto hecho en agosto puede aparecer contado bajo la fecha de registro del locatario (meses antes) en vez de agosto. Preexistente, no causado por este cambio; queda pendiente para una fase futura.
+
+---
+
+## 21. Cierre de mercado (admin) + totales por mercado en el Dashboard
+
+"Cierre diario" (§ anterior, `cierres_diarios`) es **personal**: cada cobrador cierra su propio día. El equipo pidió también un cierre a nivel **mercado**: una pantalla que agregue a todos los cobradores de un mercado en un solo resumen (todos los que cobraron ese día + el monto total), confirmado por un administrador y guardado como registro auditable — mismo patrón que Cierre diario, pero por mercado. Además, el monto total de cada mercado debe verse reflejado en el Dashboard del admin.
+
+### Tabla nueva: `cierres_mercado` (migración `0006_cierres_mercado.sql`)
+Mismo patrón que `cierres_diarios`, pero `unique(mercado_id, fecha)` en vez de `unique(cobrador_id, fecha)`, y con `cerrado_por_id`/`cerrado_por_nombre` (el administrador que confirmó el cierre, no un cobrador). Solo guarda totales agregados — el desglose por cobrador siempre se puede recalcular en vivo desde `cobros`/`abonos` para cualquier fecha pasada, igual que ya es el caso para `cierres_diarios`.
+
+### Repositorio: `cierre-mercado.repo.ts`
+Reutiliza exactamente el mismo criterio de datos que `getResumenDelDia` (Cierre diario personal, § anterior): cobros mensuales pagados el mismo día (`recibo_generado=true`, `fecha_cobro` de hoy) + abonos de hoy (`abonos.fecha`, la fecha real del pago). La diferencia es que `getResumenMercadoDelDia` agrega por **todos** los `cobrador_id` que cobraron en ese `mercado_id`, no solo uno — y como `cobros.cobrador_nombre`/`abonos.cobrador_nombre` ya vienen denormalizados en cada fila, no hace falta ningún join con `perfiles`/`cobradores` para armar la tabla por cobrador. También expone si cada cobrador ya confirmó su propio "Cierre diario" ese día (cruce informativo con `cierres_diarios`, no bloquea el cierre de mercado).
+
+### Pantalla `/cierre-mercado` (admin)
+Selector de mercado + fecha, tabla por cobrador (mensual, abonos, total, si cerró su día), totales del mercado, y botón "Cerrar mercado" (upsert, se puede volver a cerrar el mismo día si se cobra algo después — igual que Cierre diario).
+
+### Dashboard: "Totales por mercado (hoy)"
+Nueva sección que llama `getResumenMercadoDelDia` para cada mercado activo en paralelo y muestra una tabla con el total de hoy y cantidad de cobradores por mercado, cada fila enlaza a `/cierre-mercado?mercado=ID` (la pantalla lee el query param al montar para preseleccionar ese mercado). Es un cálculo en vivo, no depende de que el mercado ya se haya cerrado formalmente.
+
+### Reportes admin
+Se agregó una segunda tabla "Cierres de mercado registrados" (junto a la ya existente "Cierres diarios registrados"), usando `getCierresMercado(desde, hasta)` — mismo patrón que `getCierresDiarios`, para tener el histórico de ambos tipos de cierre en el mismo lugar.

@@ -226,6 +226,69 @@ export type Database = {
           },
         ]
       }
+      cierres_mercado: {
+        Row: {
+          cantidad_abonos: number
+          cantidad_cobradores: number
+          cantidad_mensual: number
+          cerrado_en: string
+          cerrado_por_id: string | null
+          cerrado_por_nombre: string | null
+          created_at: string
+          fecha: string
+          id: string
+          mercado_id: string
+          total_abonos: number
+          total_general: number
+          total_mensual: number
+        }
+        Insert: {
+          cantidad_abonos?: number
+          cantidad_cobradores?: number
+          cantidad_mensual?: number
+          cerrado_en?: string
+          cerrado_por_id?: string | null
+          cerrado_por_nombre?: string | null
+          created_at?: string
+          fecha: string
+          id?: string
+          mercado_id: string
+          total_abonos?: number
+          total_general?: number
+          total_mensual?: number
+        }
+        Update: {
+          cantidad_abonos?: number
+          cantidad_cobradores?: number
+          cantidad_mensual?: number
+          cerrado_en?: string
+          cerrado_por_id?: string | null
+          cerrado_por_nombre?: string | null
+          created_at?: string
+          fecha?: string
+          id?: string
+          mercado_id?: string
+          total_abonos?: number
+          total_general?: number
+          total_mensual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cierres_mercado_cerrado_por_id_fkey"
+            columns: ["cerrado_por_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cierres_mercado_mercado_id_fkey"
+            columns: ["mercado_id"]
+            isOneToOne: false
+            referencedRelation: "mercados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cobradores: {
         Row: {
           apellido: string

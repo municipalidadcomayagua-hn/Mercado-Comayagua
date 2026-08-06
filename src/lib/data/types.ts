@@ -18,6 +18,7 @@ export type Abono = Database["public"]["Tables"]["abonos"]["Row"];
 export type DeudaMora = Database["public"]["Tables"]["deudas_mora"]["Row"];
 export type AbonoMora = Database["public"]["Tables"]["abonos_mora"]["Row"];
 export type CierreDiario = Database["public"]["Tables"]["cierres_diarios"]["Row"];
+export type CierreMercado = Database["public"]["Tables"]["cierres_mercado"]["Row"];
 
 /** Cobro con sus tablas hijas cargadas (equivalente al documento anidado original). */
 export interface CobroConDetalle extends Cobro {
