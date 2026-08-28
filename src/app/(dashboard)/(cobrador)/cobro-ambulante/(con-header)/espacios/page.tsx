@@ -18,7 +18,6 @@ import {
   FormLabel,
   Heading,
   HStack,
-  IconButton,
   Image,
   Input,
   Modal,
@@ -38,27 +37,15 @@ import {
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
-import { CalendarDays, Edit, Plus, Save, Trash2, AlertCircle } from "lucide-react";
+import { Edit, Plus, Save, Trash2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { createPuesto, existePuestoEnMercado, getPuestosPorMercado, updatePuesto, eliminarLocatarioCompleto } from "@/lib/data/repositories/puestos.repo";
-import { createCobro } from "@/lib/data/repositories/cobros.repo";
-import { sumarMontoACuentaPorMercado } from "@/lib/data/repositories/cuentas.repo";
-import { siguienteNumeroRecibo } from "@/lib/data/repositories/folio.repo";
-import { getRubrosGlobales } from "@/lib/data/repositories/rubros.repo";
 import { TIPOS_PUESTO } from "@/lib/data/types";
-import type { Puesto, Rubro } from "@/lib/data/types";
+import type { Puesto } from "@/lib/data/types";
 import { FotosUploader } from "@/components/cobrador/FotosUploader";
 import SeccionMoraLocatario from "@/components/cobrador/SeccionMoraLocatario";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-/** Fila de rubro en el formulario de espacio (no confundir con Rubro = fila del catalogo). */
-interface RubroFilaDraft {
-  codigo: string;
-  concepto: string;
-  monto: string;
-  rubroId?: string;
-}
 
 interface DraftEspacio {
   nombreCliente: string;
@@ -108,7 +95,6 @@ interface DraftEspacioPersistido {
   mercadoId: string;
   editEspacioId: string | null;
   draftEspacio: DraftEspacio;
-  draftRubrosEspacio: RubroFilaDraft[];
   guardadoEn: number;
 }
 
@@ -154,10 +140,7 @@ export default function EspaciosPage() {
   const [showNewEspacioForm, setShowNewEspacioForm] = useState(false);
   const [editEspacioId, setEditEspacioId] = useState<string | null>(null);
   const [draftEspacio, setDraftEspacio] = useState<DraftEspacio>(DRAFT_VACIO);
-  const [draftRubrosEspacio, setDraftRubrosEspacio] = useState<RubroFilaDraft[]>([]);
-  const [rubrosCatalogo, setRubrosCatalogo] = useState<Rubro[]>([]);
   const [savingEspacio, setSavingEspacio] = useState(false);
-  const [distribuyendoEspacio, setDistribuyendoEspacio] = useState(false);
 
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [subiendoFotoPermiso, setSubiendoFotoPermiso] = useState(false);
@@ -177,12 +160,6 @@ export default function EspaciosPage() {
   const cancelarEliminarRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    getRubrosGlobales()
-      .then((rubros) => setRubrosCatalogo(rubros.filter((r) => (r.tipo_rubro ?? "vigente") === "vigente")))
-      .catch(() => setRubrosCatalogo([]));
-  }, []);
-
-  useEffect(() => {
     if (mercadoId) loadEspacios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mercadoId]);
@@ -195,7 +172,6 @@ export default function EspaciosPage() {
     const draft = leerDraftDeStorage();
     if (!draft || draft.cobradorId !== cobradorId || draft.mercadoId !== mercadoId) return;
     setDraftEspacio(draft.draftEspacio);
-    setDraftRubrosEspacio(draft.draftRubrosEspacio);
     if (draft.editEspacioId) {
       setEditEspacioId(draft.editEspacioId);
     } else {
@@ -220,10 +196,9 @@ export default function EspaciosPage() {
       mercadoId,
       editEspacioId,
       draftEspacio,
-      draftRubrosEspacio,
       guardadoEn: Date.now(),
     });
-  }, [cobradorId, mercadoId, editEspacioId, showNewEspacioForm, draftEspacio, draftRubrosEspacio]);
+  }, [cobradorId, mercadoId, editEspacioId, showNewEspacioForm, draftEspacio]);
 
   const loadEspacios = async () => {
     if (!mercadoId) return;
@@ -241,7 +216,6 @@ export default function EspaciosPage() {
 
   const limpiarDraft = () => {
     setDraftEspacio(DRAFT_VACIO);
-    setDraftRubrosEspacio([]);
     borrarDraftDeStorage();
   };
 
@@ -321,104 +295,6 @@ export default function EspaciosPage() {
     }
   };
 
-  const handleGuardarEspacioYDistribuir = async () => {
-    if (!cobradorId || !mercadoId || !draftEspacio.nombreCliente.trim() || !draftEspacio.numeroPuesto.trim() || !draftEspacio.tipoPuesto.trim()) {
-      toast({ title: "Campos requeridos", description: "Complete nombre del locatario, número y tipo de puesto", status: "error", isClosable: true });
-      return;
-    }
-    const plantilla = draftRubrosEspacio.filter((r) => (r.codigo || r.concepto || r.rubroId) && r.monto && parseFloat(r.monto) > 0);
-    if (plantilla.length === 0) {
-      toast({ title: "Rubros requeridos", description: "Agregue al menos un rubro del catálogo con monto mayor a 0", status: "error", isClosable: true });
-      return;
-    }
-    const existe = await existePuestoEnMercado(mercadoId, draftEspacio.numeroPuesto.trim(), anio);
-    if (existe) {
-      toast({ title: "Error", description: `Ya existe un locatario con el número ${draftEspacio.numeroPuesto} para este año`, status: "error", isClosable: true });
-      return;
-    }
-    setDistribuyendoEspacio(true);
-    try {
-      await createPuesto({
-        cobrador_id: cobradorId,
-        mercado_id: mercadoId,
-        nombre_cliente: draftEspacio.nombreCliente.trim(),
-        numero_puesto: draftEspacio.numeroPuesto.trim(),
-        tipo_puesto: draftEspacio.tipoPuesto,
-        valor_diario: parseFloat(draftEspacio.valorDiario) || 0,
-        valor_renta_mensual: parseFloat(draftEspacio.valorMensual) || 0,
-        anio,
-        activo: true,
-        numero_identidad: draftEspacio.numeroIdentidad.trim() || null,
-        rtn: draftEspacio.rtn.trim() || null,
-        direccion_cliente: draftEspacio.direccionCliente.trim() || null,
-        telefono: draftEspacio.telefono.trim() || null,
-        observaciones: draftEspacio.observaciones.trim() || null,
-        foto_documento_url: draftEspacio.fotoDocumentoUrl.trim() || null,
-        foto_permiso_operacion_urls: draftEspacio.fotoPermisoOperacionUrls.length ? draftEspacio.fotoPermisoOperacionUrls : null,
-        foto_contrato_arrendamiento_urls: draftEspacio.fotoContratoArrendamientoUrls.length ? draftEspacio.fotoContratoArrendamientoUrls : null,
-        foto_tarjeta_cobro_anual_urls: draftEspacio.fotoTarjetaCobroAnualUrls.length ? draftEspacio.fotoTarjetaCobroAnualUrls : null,
-      });
-
-      const pagosAdicionales = plantilla.map((r) => {
-        const cat = r.rubroId ? rubrosCatalogo.find((c) => c.id === r.rubroId) : undefined;
-        const codigo = cat?.codigo ?? r.codigo ?? "";
-        const concepto = cat?.concepto ?? r.concepto ?? "Rubro";
-        return { concepto: [codigo, concepto].filter(Boolean).join(". ") || "Rubro", monto: parseFloat(r.monto) || 0 };
-      });
-      const montoTotal = pagosAdicionales.reduce((s, pa) => s + pa.monto, 0);
-
-      // 12 numeros de recibo sequenciales (uno por mes), asignados de antemano
-      // para poder crear los 12 cobros en paralelo despues.
-      const numerosRecibo: number[] = [];
-      for (let i = 0; i < 12; i++) {
-        numerosRecibo.push(await siguienteNumeroRecibo(mercadoId));
-      }
-
-      await Promise.all(
-        Array.from({ length: 12 }, (_, mesIndex) =>
-          createCobro(
-            {
-              cobrador_id: cobradorId,
-              codigo_cuenta: cobradorId,
-              cobrador_nombre: nombreCobrador,
-              nombre_cliente: draftEspacio.nombreCliente.trim(),
-              numero_puesto: draftEspacio.numeroPuesto.trim(),
-              tipo_puesto: draftEspacio.tipoPuesto,
-              tipo_cobro: "mensual",
-              valor_diario: 0,
-              anio,
-              monto: montoTotal,
-              estado: "activo",
-              mes: mesIndex + 1,
-              renta_mensual: 0,
-              pagos_adicionales: pagosAdicionales,
-              recibo_generado: false,
-              mercado_id: mercadoId,
-            },
-            { numeroRecibo: numerosRecibo[mesIndex], skipActualizarCuenta: true }
-          )
-        )
-      );
-      await sumarMontoACuentaPorMercado(mercadoId, cobradorId, draftEspacio.numeroPuesto.trim(), 12 * montoTotal, draftEspacio.nombreCliente.trim());
-
-      toast({
-        title: "Espacio y 12 meses creados",
-        description: "Los rubros quedaron distribuidos en los 12 meses. En Cobros mensuales puede editar rubros por mes y generar el recibo.",
-        status: "success",
-        duration: 6000,
-        isClosable: true,
-      });
-      limpiarDraft();
-      setShowNewEspacioForm(false);
-      loadEspacios();
-    } catch (e) {
-      console.error(e);
-      toast({ title: "Error", description: e instanceof Error ? e.message : "No se pudo guardar el espacio ni distribuir los meses.", status: "error", duration: 8000, isClosable: true });
-    } finally {
-      setDistribuyendoEspacio(false);
-    }
-  };
-
   const confirmarEliminarLocatario = async () => {
     if (!puestoAEliminar) return;
     setEliminandoLocatario(true);
@@ -447,7 +323,7 @@ export default function EspaciosPage() {
           Locatarios
         </Heading>
         <Text color="gray.500" fontSize={{ base: "xs", sm: "sm" }} mt={1}>
-          Registre cada locatario, agregue los rubros del catálogo del admin y distribúyalos en los 12 meses. En Cobros mensuales podrá generar el recibo y editar o agregar/eliminar rubros por mes.
+          Registre cada locatario. Los meses y rubros a cobrar se registran después, uno a la vez, en Pagos.
         </Text>
       </Box>
 
@@ -594,84 +470,6 @@ export default function EspaciosPage() {
               </FormControl>
             </SimpleGrid>
 
-            {!editEspacioId && (
-              <>
-                <Box borderWidth="1px" borderRadius="md" p={{ base: 3, md: 4 }} bg="gray.50" mt={4} overflow="hidden">
-                  <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
-                    <Text fontWeight="bold" fontSize="sm" minW={0}>
-                      Rubros a cobrar (catálogo del admin)
-                    </Text>
-                    {rubrosCatalogo.length > 0 && (
-                      <Button size="sm" colorScheme="teal" leftIcon={<Plus size={16} />} onClick={() => setDraftRubrosEspacio((prev) => [...prev, { codigo: "", concepto: "", monto: "" }])} flexShrink={0}>
-                        Agregar rubro
-                      </Button>
-                    )}
-                  </HStack>
-                  {rubrosCatalogo.length === 0 ? (
-                    <Text fontSize="sm" color="orange.600" fontStyle="italic">
-                      No hay rubros creados. Pida al administrador que los agregue en el catálogo de rubros antes de registrar cobros.
-                    </Text>
-                  ) : (
-                    <VStack spacing={2} align="stretch">
-                      {draftRubrosEspacio.map((rubro, idx) => {
-                        const otras = draftRubrosEspacio.filter((_, i) => i !== idx);
-                        const idsUsados = otras.map((r) => r.rubroId).filter(Boolean);
-                        const opciones = rubrosCatalogo.filter((r) => r.id === rubro.rubroId || !idsUsados.includes(r.id));
-                        return (
-                          <Box key={idx} p={2} borderWidth="1px" borderRadius="md" borderColor="gray.200" minW={0}>
-                            <HStack mb={2} spacing={2} flexWrap="wrap" align="stretch">
-                              <Select
-                                size="sm"
-                                placeholder="Seleccionar rubro..."
-                                value={rubro.rubroId || ""}
-                                onChange={(e) => {
-                                  const id = e.target.value;
-                                  const c = rubrosCatalogo.find((r) => r.id === id);
-                                  setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, rubroId: id, codigo: c?.codigo ?? "", concepto: c?.concepto ?? "" } : r)));
-                                }}
-                                flex={1}
-                                minW={0}
-                              >
-                                {opciones.map((r) => (
-                                  <option key={r.id} value={r.id}>
-                                    {r.concepto}
-                                  </option>
-                                ))}
-                              </Select>
-                              <IconButton aria-label="Eliminar rubro" icon={<Trash2 size={14} />} size="xs" colorScheme="red" variant="ghost" onClick={() => setDraftRubrosEspacio((prev) => prev.filter((_, i) => i !== idx))} flexShrink={0} />
-                            </HStack>
-                            <Input type="number" step="0.01" placeholder="Monto" value={rubro.monto} onChange={(e) => setDraftRubrosEspacio((prev) => prev.map((r, i) => (i === idx ? { ...r, monto: e.target.value } : r)))} size="sm" w="100%" />
-                          </Box>
-                        );
-                      })}
-                      {draftRubrosEspacio.length === 0 && (
-                        <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                          Agregue rubros del catálogo y montos. Luego use &quot;Guardar y distribuir en 12 meses&quot;.
-                        </Text>
-                      )}
-                    </VStack>
-                  )}
-                </Box>
-                <Button
-                  mt={4}
-                  colorScheme="teal"
-                  size="lg"
-                  w={{ base: "full", sm: "auto" }}
-                  leftIcon={<CalendarDays size={18} />}
-                  onClick={handleGuardarEspacioYDistribuir}
-                  isLoading={distribuyendoEspacio}
-                  isDisabled={
-                    !draftEspacio.nombreCliente.trim() ||
-                    !draftEspacio.numeroPuesto.trim() ||
-                    !draftEspacio.tipoPuesto.trim() ||
-                    draftRubrosEspacio.filter((r) => r.monto && parseFloat(r.monto) > 0 && (r.rubroId || r.codigo || r.concepto)).length === 0
-                  }
-                >
-                  Guardar y distribuir en 12 meses
-                </Button>
-              </>
-            )}
-
             <VStack mt={4} spacing={3} align="stretch" w="full">
               {editEspacioId ? (
                 <HStack flexDirection={{ base: "column", sm: "row" }} spacing={3} w="full">
@@ -702,8 +500,7 @@ export default function EspaciosPage() {
               ) : (
                 <HStack flexDirection={{ base: "column", sm: "row" }} spacing={3} w="full">
                   <Button
-                    colorScheme="blue"
-                    variant="outline"
+                    colorScheme="teal"
                     onClick={handleSaveNewEspacio}
                     isLoading={savingEspacio}
                     leftIcon={<Save size={18} />}
@@ -711,7 +508,7 @@ export default function EspaciosPage() {
                     w={{ base: "full", sm: "auto" }}
                     size={{ base: "md", md: "lg" }}
                   >
-                    Solo guardar espacio (sin distribuir)
+                    Guardar locatario
                   </Button>
                   <Button
                     variant="outline"

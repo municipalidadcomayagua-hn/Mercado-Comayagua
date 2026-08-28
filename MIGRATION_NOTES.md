@@ -629,3 +629,13 @@ Un mes sin cargo guardado ya no arranca vacío: si el locatario tiene `valor_ren
 
 ### 5. Mora por período
 `deudas_mora` gana columnas `anio`/`mes` (nullables — la mora que ya genera Cierre Anual automáticamente sigue sin mes específico, "mora general del año"). "Gestionar mora" (`SeccionMoraLocatario.tsx`) ahora pide un período opcional (año + mes) al registrar una deuda; se ve en la tarjeta de la deuda y en el recibo (`ReciboAbonoMora`). **Esta es la vía elegida para la deuda de años anteriores** (en vez de extender `cobros`/`cuentas_por_cobrar` a múltiples años): `getCuentasPorMercado` resetea el saldo pendiente a 0 cada año a propósito (comentario ya existente en `cuentas.repo.ts`), y esa regla se dejó intacta — la deuda vieja se carga como mora anclada a su período, no como un cargo mensual nuevo.
+
+---
+
+## 24. Eliminado "Guardar y distribuir en 12 meses"; mora accesible desde Pagos
+
+Con "meses vigentes dinámicos" (§23.4) ya resuelto en Pagos, quedaba un problema en el origen: registrar un locatario en Locatarios con "Guardar y distribuir en 12 meses" seguía creando los 12 `cobros` del año de una sola vez (con recibo asignado a cada uno) — esos 12 meses, al ya existir guardados, terminaban siempre visibles en Pagos sin importar el filtro de "meses vigentes". El equipo confirmó eliminar esa sección: **ahora solo existe el registro simple del locatario** (`handleSaveNewEspacio`, renombrado a botón "Guardar locatario"); los meses se van creando uno a la vez desde Pagos, a medida que se cobran — que es exactamente el flujo que ya soporta `construirRubroRentaMensual` (§23.3).
+
+Se eliminaron de `espacios/page.tsx`: `handleGuardarEspacioYDistribuir`, el bloque "Rubros a cobrar (catálogo del admin)" con su selector de rubros y montos, el estado `draftRubrosEspacio`/`rubrosCatalogo` y sus imports asociados (`createCobro`, `sumarMontoACuentaPorMercado`, `siguienteNumeroRecibo`, `getRubrosGlobales`). No se tocó el esquema ni se borraron datos ya creados por ese flujo en producción (confirmado con el usuario que era solo una factura de prueba).
+
+**"Gestionar mora" ahora también está en Pagos** (`PuestoCardMensual.tsx`), no solo en Locatarios — mismo componente `SeccionMoraLocatario` reutilizado, con un `Puesto` reconstruido a partir de los campos de `PuestoLocal` (mismo patrón ya usado para el recibo en `handleVerRecibo`). Así el cobrador no tiene que salir de la pantalla donde está cobrando para atender una deuda en mora.

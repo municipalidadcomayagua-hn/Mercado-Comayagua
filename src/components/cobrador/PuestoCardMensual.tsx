@@ -31,12 +31,13 @@ import {
   useDisclosure,
   VStack,
 } from "@chakra-ui/react";
-import { Check, ChevronDown, ChevronUp, Edit, FileText, Plus, Save, Trash2, Wallet, X, XCircle } from "lucide-react";
-import type { Abono, Rubro } from "@/lib/data/types";
+import { AlertCircle, Check, ChevronDown, ChevronUp, Edit, FileText, Plus, Save, Trash2, Wallet, X, XCircle } from "lucide-react";
+import type { Abono, Puesto, Rubro } from "@/lib/data/types";
 import { RUBRO_RENTA_MENSUAL, TIPOS_PUESTO } from "@/lib/data/types";
 import { getAbonosPorCuentaEnMercado, type ResultadoRegistroAbono } from "@/lib/data/repositories/cuentas.repo";
 import RegistrarAbonoModal from "@/components/cobrador/RegistrarAbonoModal";
 import ReciboAbono from "@/components/recibos/ReciboAbono";
+import SeccionMoraLocatario from "@/components/cobrador/SeccionMoraLocatario";
 
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -154,6 +155,35 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
   const { isOpen: isAbonoModalOpen, onOpen: onAbonoModalOpen, onClose: onAbonoModalClose } = useDisclosure();
   const { isOpen: isReciboAbonoOpen, onOpen: onReciboAbonoOpen, onClose: onReciboAbonoClose } = useDisclosure();
   const [reciboAbonoResultado, setReciboAbonoResultado] = useState<ResultadoRegistroAbono | null>(null);
+  const { isOpen: isMoraOpen, onOpen: onMoraOpen, onClose: onMoraClose } = useDisclosure();
+
+  // Puesto completo para SeccionMoraLocatario (que trabaja con el tipo Puesto
+  // de la base, no con PuestoLocal): se completan con valores neutros los
+  // campos que esta pantalla no necesita y no trae en PuestoLocal.
+  const puestoParaMora: Puesto = {
+    id: puesto.id,
+    cobrador_id: cobradorId ?? "",
+    mercado_id: mercadoId ?? "",
+    nombre_cliente: puesto.nombreCliente,
+    numero_puesto: puesto.numeroPuesto,
+    tipo_puesto: puesto.tipoPuesto,
+    valor_diario: parseFloat(puesto.valorDiario) || 0,
+    valor_renta_mensual: parseFloat(puesto.valorMensual) || 0,
+    anio: new Date().getFullYear(),
+    activo: true,
+    codigo: puesto.codigo || "",
+    numero_identidad: puesto.numeroIdentidad ?? null,
+    rtn: puesto.rtn ?? null,
+    direccion_cliente: null,
+    telefono: null,
+    observaciones: null,
+    foto_documento_url: null,
+    foto_permiso_operacion_urls: null,
+    foto_contrato_arrendamiento_urls: null,
+    foto_tarjeta_cobro_anual_urls: null,
+    en_mora: null,
+    created_at: new Date().toISOString(),
+  };
 
   const cargarHistorialAbonos = async () => {
     if (!mercadoId) return;
@@ -346,6 +376,14 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                     </Button>
                   </HStack>
                 </VStack>
+              )}
+
+              {mercadoId && cobradorId && (
+                <HStack justify="flex-end">
+                  <Button size="sm" leftIcon={<AlertCircle size={16} />} variant="outline" colorScheme="orange" onClick={onMoraOpen}>
+                    Gestionar mora
+                  </Button>
+                </HStack>
               )}
 
               <Tabs
@@ -738,6 +776,20 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {mercadoId && cobradorId && (
+        <SeccionMoraLocatario
+          puesto={puestoParaMora}
+          cobradorId={cobradorId}
+          mercadoId={mercadoId}
+          mercadoNombre={mercadoNombre}
+          usuarioId={cobradorId}
+          usuarioNombre={cobradorNombre || "Usuario"}
+          isOpen={isMoraOpen}
+          onClose={onMoraClose}
+          onActualizado={onAbonoRegistrado}
+        />
+      )}
     </Card>
   );
 });
