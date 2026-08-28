@@ -77,9 +77,6 @@ export default function PagosMensualesPage() {
         console.warn("No se pudieron cargar los cobros guardados, continuando sin ellos:", error);
       }
 
-      const mesActual = new Date().getMonth() + 1; // 1-12
-      const esAnioActual = anio === new Date().getFullYear();
-
       const puestosLocales: PuestoLocal[] = puestosGuardados.map((p) => {
         const pagosMensualesGuardados: { [mesIndex: number]: PagoMensual } = {};
         cobrosGuardados
@@ -115,25 +112,13 @@ export default function PagosMensualesPage() {
             };
           });
 
-        // Meses vigentes: por defecto Enero..mes actual (no se pintan meses
-        // futuros que no han pasado), mas cualquier mes que ya tenga cargo
-        // guardado aunque quede fuera de ese rango. Los meses vigentes sin
-        // cargo guardado se precargan con la renta mensual del locatario.
-        const mesesConDatos = Object.keys(pagosMensualesGuardados).map(Number);
-        const mesesPorDefecto = esAnioActual ? Array.from({ length: mesActual }, (_, i) => i) : [];
-        const mesesVisibles = Array.from(new Set([...mesesPorDefecto, ...mesesConDatos])).sort((a, b) => a - b);
-
+        // Meses vigentes: solo los que ya tengan cargo guardado. Ninguno se
+        // muestra por defecto - el cobrador elige cuales activar con
+        // "+ Agregar mes" (o ya vienen guardados de antes). Nada de pintar
+        // Enero..mes actual de entrada: eso volvia a mostrar tarjetas vacias
+        // para todos los locatarios aunque no hubiera ningun cargo real.
+        const mesesVisibles = Object.keys(pagosMensualesGuardados).map(Number).sort((a, b) => a - b);
         const valorMensualNum = p.valor_renta_mensual ?? 0;
-        for (const mesIndex of mesesVisibles) {
-          if (pagosMensualesGuardados[mesIndex]) continue;
-          pagosMensualesGuardados[mesIndex] = {
-            rentaMensual: "",
-            pagosAdicionales: [],
-            rubros: construirRubroRentaMensual(valorMensualNum, rubrosCatalogo),
-            guardado: false,
-            editando: false,
-          };
-        }
 
         return {
           id: p.id,
@@ -166,7 +151,7 @@ export default function PagosMensualesPage() {
     } finally {
       setLoadingPuestos(false);
     }
-  }, [mercadoId, anio, rubrosCatalogo]);
+  }, [mercadoId, anio]);
 
   useEffect(() => {
     if (mercadoId) loadPuestosGuardados();
