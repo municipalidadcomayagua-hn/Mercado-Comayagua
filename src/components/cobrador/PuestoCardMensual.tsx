@@ -75,10 +75,14 @@ export interface PuestoLocal {
   numeroPuesto: string;
   tipoPuesto: string;
   valorDiario: string;
+  /** Independiente del diario (no se deriva de el) - se usa para precargar el rubro de renta de un mes nuevo. */
+  valorMensual: string;
   numeroIdentidad?: string;
   rtn?: string;
   codigo?: string;
   pagosMensuales: { [mesIndex: number]: PagoMensual };
+  /** Meses (0-11) que se muestran: por defecto Enero..mes actual, mas cualquier mes con cargo guardado o agregado a mano. */
+  mesesVisibles: number[];
   expanded: boolean;
   editando: boolean;
 }
@@ -98,6 +102,8 @@ interface PuestoCardProps {
   onActualizarRubroMes: (puestoId: string, mesIndex: number, rubroIndex: number, campo: keyof RubroFilaDraft, valor: string) => void;
   onAgregarRubroMes: (puestoId: string, mesIndex: number) => void;
   onEliminarRubroMes: (puestoId: string, mesIndex: number, rubroIndex: number) => void;
+  /** Activa puntualmente un mes vigente que no estaba en la lista por defecto. */
+  onAgregarMesVisible: (puestoId: string, mesIndex: number) => void;
   rubrosCatalogo: Rubro[];
   /** Deuda = solo meses que ya pasaron sin pagar */
   onCalcularDeudaMesesVencidos: (puesto: PuestoLocal) => number;
@@ -131,6 +137,7 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
   onActualizarRubroMes,
   onAgregarRubroMes,
   onEliminarRubroMes,
+  onAgregarMesVisible,
   rubrosCatalogo,
   onCalcularDeudaMesesVencidos,
   saldoPendienteReal,
@@ -216,7 +223,7 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                         </Badge>
                       )}
                     </HStack>
-                    <SimpleGrid columns={{ base: 1, md: 2, lg: puesto.codigo ? 5 : 4 }} spacing={4}>
+                    <SimpleGrid columns={{ base: 1, md: 2, lg: puesto.codigo ? 6 : 5 }} spacing={4}>
                       {puesto.codigo && (
                         <Box bg="blue.50" p={3} borderRadius="md" borderWidth="1px" borderColor="blue.200" minW={0}>
                           <Text fontSize="xs" color="gray.600" mb={1}>
@@ -257,6 +264,14 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                         </Text>
                         <Text fontSize={{ base: "sm", md: "md" }} fontWeight="medium">
                           {formatCurrency(parseFloat(puesto.valorDiario) || 0)}
+                        </Text>
+                      </Box>
+                      <Box minW={0}>
+                        <Text fontSize="xs" color="gray.600">
+                          Valor Mensual
+                        </Text>
+                        <Text fontSize={{ base: "sm", md: "md" }} fontWeight="medium">
+                          {formatCurrency(parseFloat(puesto.valorMensual) || 0)}
                         </Text>
                       </Box>
                       {(puesto.numeroIdentidad ?? "").trim() && (
@@ -352,8 +367,36 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
                 </TabList>
                 <TabPanels>
                   <TabPanel px={0}>
+                    {(() => {
+                      const mesesNoVisibles = MESES.map((_, i) => i).filter((i) => !puesto.mesesVisibles.includes(i));
+                      return (
+                        mesesNoVisibles.length > 0 && (
+                          <HStack spacing={2} mb={4} flexWrap="wrap">
+                            <Text fontSize="sm" color="gray.600">
+                              Agregar mes vigente:
+                            </Text>
+                            <Select
+                              size="sm"
+                              maxW="220px"
+                              placeholder="Seleccione un mes..."
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) onAgregarMesVisible(puesto.id, parseInt(e.target.value, 10));
+                              }}
+                            >
+                              {mesesNoVisibles.map((i) => (
+                                <option key={i} value={i}>
+                                  {MESES[i]}
+                                </option>
+                              ))}
+                            </Select>
+                          </HStack>
+                        )
+                      );
+                    })()}
                     <VStack spacing={4} align="stretch">
-                      {MESES.map((mes, mesIndex) => {
+                      {puesto.mesesVisibles.map((mesIndex) => {
+                  const mes = MESES[mesIndex];
                   const pagoMes = puesto.pagosMensuales[mesIndex] || { rentaMensual: "", pagosAdicionales: [], rubros: [], guardado: false, editando: false };
                   const totalMes = onCalcularTotalMes(puesto, mesIndex);
                   const estaEditando = Boolean(pagoMes.editando);
@@ -683,6 +726,7 @@ export const PuestoCardMensual = memo(function PuestoCardMensual({
           cobradorId={cobradorId}
           cobradorNombre={cobradorNombre ?? ""}
           onRegistrado={handleAbonoRegistrado}
+          valorDiario={parseFloat(puesto.valorDiario) || undefined}
         />
       )}
 

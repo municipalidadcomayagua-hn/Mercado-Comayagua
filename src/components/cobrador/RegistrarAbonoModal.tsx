@@ -39,6 +39,8 @@ export interface RegistrarAbonoModalProps {
   cobradorId: string;
   cobradorNombre: string;
   onRegistrado: (resultado: ResultadoRegistroAbono) => void;
+  /** Valor de renta diaria del locatario (opcional): si se pasa, habilita la calculadora "días × diario" para sugerir el monto del abono. */
+  valorDiario?: number;
 }
 
 /**
@@ -59,12 +61,14 @@ export default function RegistrarAbonoModal({
   cobradorId,
   cobradorNombre,
   onRegistrado,
+  valorDiario,
 }: RegistrarAbonoModalProps) {
   const toast = useToast();
   const anioActual = new Date().getFullYear();
   const mesActual = new Date().getMonth() + 1;
 
   const [montoAbono, setMontoAbono] = useState("");
+  const [diasTrabajados, setDiasTrabajados] = useState("");
   const [referenciaAbono, setReferenciaAbono] = useState("");
   const [guardandoAbono, setGuardandoAbono] = useState(false);
   const [mesesPendientes, setMesesPendientes] = useState<{ mes: number; cobroId: string; monto: number }[]>([]);
@@ -85,6 +89,7 @@ export default function RegistrarAbonoModal({
   useEffect(() => {
     if (!isOpen) return;
     setMontoAbono("");
+    setDiasTrabajados("");
     setReferenciaAbono("");
     setMesesSeleccionados([]);
     setMesAplicadoSeleccionado("");
@@ -299,6 +304,27 @@ export default function RegistrarAbonoModal({
               </>
             )}
 
+            {valorDiario != null && valorDiario > 0 && (
+              <FormControl>
+                <FormLabel>Días trabajados (opcional)</FormLabel>
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={diasTrabajados}
+                  onChange={(e) => {
+                    const dias = e.target.value;
+                    setDiasTrabajados(dias);
+                    const n = parseFloat(dias);
+                    if (dias && !isNaN(n) && n >= 0) setMontoAbono((n * valorDiario).toFixed(2));
+                  }}
+                  placeholder="Ej: 4"
+                />
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  Sugiere el monto como días × {formatCurrency(valorDiario)} de renta diaria. El monto sigue siendo editable a mano.
+                </Text>
+              </FormControl>
+            )}
             <FormControl isRequired>
               <FormLabel>Monto del abono (L.)</FormLabel>
               <Input type="number" step="0.01" min={0.01} max={saldoPendiente} value={montoAbono} onChange={(e) => setMontoAbono(e.target.value)} placeholder="0.00" />

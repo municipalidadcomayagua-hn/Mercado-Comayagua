@@ -50,6 +50,9 @@ import type { Puesto, DeudaMora, AbonoMora, Rubro } from "@/lib/data/types";
 // Puerto de src/components/SeccionMoraLocatario.tsx original.
 
 const formatCurrency = (n: number) => `L. ${n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const ANIO_ACTUAL = new Date().getFullYear();
+const ANIOS_PERIODO = [ANIO_ACTUAL, ANIO_ACTUAL - 1, ANIO_ACTUAL - 2, ANIO_ACTUAL - 3];
 
 interface SeccionMoraLocatarioProps {
   puesto: Puesto;
@@ -86,6 +89,8 @@ export default function SeccionMoraLocatario({
   const [rubroId, setRubroId] = useState("");
   const [montoTotal, setMontoTotal] = useState("");
   const [descripcionDeuda, setDescripcionDeuda] = useState("");
+  const [anioDeuda, setAnioDeuda] = useState<number | "">("");
+  const [mesDeuda, setMesDeuda] = useState<number | "">("");
 
   const [deudaSeleccionada, setDeudaSeleccionada] = useState<DeudaMora | null>(null);
   const [montoAbono, setMontoAbono] = useState("");
@@ -161,13 +166,17 @@ export default function SeccionMoraLocatario({
         rubro.concepto,
         monto,
         descripcionDeuda.trim() || undefined,
-        mercadoId ?? undefined
+        mercadoId ?? undefined,
+        anioDeuda === "" ? undefined : anioDeuda,
+        mesDeuda === "" ? undefined : mesDeuda
       );
       await updatePuesto(puesto.id, { en_mora: true });
       setEnMora(true);
       setRubroId("");
       setMontoTotal("");
       setDescripcionDeuda("");
+      setAnioDeuda("");
+      setMesDeuda("");
       toast({ title: "Deuda registrada", status: "success", isClosable: true });
       cargar();
       onActualizado?.();
@@ -281,6 +290,33 @@ export default function SeccionMoraLocatario({
                         <FormLabel>Monto total de la deuda (L.)</FormLabel>
                         <Input type="number" step="0.01" min="0.01" value={montoTotal} onChange={(e) => setMontoTotal(e.target.value)} placeholder="0.00" />
                       </FormControl>
+                      <FormControl>
+                        <FormLabel>Año del período (opcional)</FormLabel>
+                        <Select
+                          placeholder="General (sin período)"
+                          value={anioDeuda === "" ? "" : String(anioDeuda)}
+                          onChange={(e) => {
+                            setAnioDeuda(e.target.value ? parseInt(e.target.value, 10) : "");
+                            if (!e.target.value) setMesDeuda("");
+                          }}
+                        >
+                          {ANIOS_PERIODO.map((a) => (
+                            <option key={a} value={a}>
+                              {a}
+                            </option>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <FormControl isDisabled={anioDeuda === ""}>
+                        <FormLabel>Mes del período (opcional)</FormLabel>
+                        <Select placeholder="Todo el año" value={mesDeuda === "" ? "" : String(mesDeuda)} onChange={(e) => setMesDeuda(e.target.value ? parseInt(e.target.value, 10) : "")}>
+                          {MESES_NOMBRES.map((nombre, idx) => (
+                            <option key={nombre} value={idx + 1}>
+                              {nombre}
+                            </option>
+                          ))}
+                        </Select>
+                      </FormControl>
                       <FormControl gridColumn={{ base: 1, md: "1 / -1" }}>
                         <FormLabel>Descripción u observación (opcional)</FormLabel>
                         <Input value={descripcionDeuda} onChange={(e) => setDescripcionDeuda(e.target.value)} placeholder="Ej: mora acumulada 2021–2023" />
@@ -322,6 +358,8 @@ export default function SeccionMoraLocatario({
                         </SimpleGrid>
                         <Text fontSize="sm" color="gray.600" mb={2}>
                           Rubro: {deuda.rubro_concepto}
+                          {deuda.mes && ` – Período: ${MESES_NOMBRES[deuda.mes - 1]} ${deuda.anio ?? ""}`.trimEnd()}
+                          {!deuda.mes && deuda.anio && ` – Período: ${deuda.anio}`}
                           {deuda.descripcion && ` – ${deuda.descripcion}`}
                         </Text>
                         {deuda.saldo_pendiente > 0 && (
@@ -375,6 +413,8 @@ export default function SeccionMoraLocatario({
                                               rubroConcepto: deuda.rubro_concepto,
                                               saldoPendienteDespues: abono.saldo_pendiente_despues,
                                               usuarioNombre: abono.usuario_nombre,
+                                              anio: deuda.anio,
+                                              mes: deuda.mes,
                                             });
                                             onReciboOpen();
                                           }}

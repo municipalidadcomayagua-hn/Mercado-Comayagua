@@ -17,6 +17,23 @@ import Recibo from "@/components/recibos/Recibo";
 const formatCurrency = (amount: number): string => `L. ${amount.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
+ * Fila de rubro "Renta mensual" para precargar un mes que todavia no tiene
+ * cargo guardado, usando el valor_renta_mensual del locatario. Si el
+ * catalogo del admin ya tiene un rubro que matchea "renta mensual" se usa
+ * ese (real, con rubroId); si no, una fila reemplazable con "Cambiar" igual
+ * que las demas - nunca queda fuera del catalogo de forma permanente.
+ */
+function construirRubroRentaMensual(valorMensual: number, rubrosCatalogo: Rubro[]): RubroFilaDraft[] {
+  if (valorMensual <= 0) return [];
+  const rubroCat = rubrosCatalogo.find((r) => (r.concepto || "").toLowerCase().includes("renta mensual"));
+  return [
+    rubroCat
+      ? { rubroId: rubroCat.id, codigo: rubroCat.codigo, concepto: rubroCat.concepto, monto: valorMensual.toString() }
+      : { codigo: "", concepto: "Renta mensual", monto: valorMensual.toString() },
+  ];
+}
+
+/**
  * Puerto de la vista "Pagos mensuales" (VistaPagosMensuales) de
  * CobroAmbulante.tsx original. Se omitieron agregarPuesto/eliminarPuesto/
  * agregarRubroPlantilla/eliminarRubroPlantilla/actualizarRubroPlantilla/
@@ -60,6 +77,9 @@ export default function PagosMensualesPage() {
         console.warn("No se pudieron cargar los cobros guardados, continuando sin ellos:", error);
       }
 
+      const mesActual = new Date().getMonth() + 1; // 1-12
+      const esAnioActual = anio === new Date().getFullYear();
+
       const puestosLocales: PuestoLocal[] = puestosGuardados.map((p) => {
         const pagosMensualesGuardados: { [mesIndex: number]: PagoMensual } = {};
         cobrosGuardados
@@ -95,16 +115,38 @@ export default function PagosMensualesPage() {
             };
           });
 
+        // Meses vigentes: por defecto Enero..mes actual (no se pintan meses
+        // futuros que no han pasado), mas cualquier mes que ya tenga cargo
+        // guardado aunque quede fuera de ese rango. Los meses vigentes sin
+        // cargo guardado se precargan con la renta mensual del locatario.
+        const mesesConDatos = Object.keys(pagosMensualesGuardados).map(Number);
+        const mesesPorDefecto = esAnioActual ? Array.from({ length: mesActual }, (_, i) => i) : [];
+        const mesesVisibles = Array.from(new Set([...mesesPorDefecto, ...mesesConDatos])).sort((a, b) => a - b);
+
+        const valorMensualNum = p.valor_renta_mensual ?? 0;
+        for (const mesIndex of mesesVisibles) {
+          if (pagosMensualesGuardados[mesIndex]) continue;
+          pagosMensualesGuardados[mesIndex] = {
+            rentaMensual: "",
+            pagosAdicionales: [],
+            rubros: construirRubroRentaMensual(valorMensualNum, rubrosCatalogo),
+            guardado: false,
+            editando: false,
+          };
+        }
+
         return {
           id: p.id,
           nombreCliente: p.nombre_cliente,
           numeroPuesto: p.numero_puesto,
           tipoPuesto: p.tipo_puesto,
           valorDiario: p.valor_diario.toString(),
+          valorMensual: valorMensualNum.toString(),
           numeroIdentidad: p.numero_identidad ?? "",
           rtn: p.rtn ?? "",
           codigo: p.codigo,
           pagosMensuales: pagosMensualesGuardados,
+          mesesVisibles,
           expanded: false,
           editando: false,
         };
@@ -124,7 +166,7 @@ export default function PagosMensualesPage() {
     } finally {
       setLoadingPuestos(false);
     }
-  }, [mercadoId, anio]);
+  }, [mercadoId, anio, rubrosCatalogo]);
 
   useEffect(() => {
     if (mercadoId) loadPuestosGuardados();
@@ -178,6 +220,31 @@ export default function PagosMensualesPage() {
       })
     );
   }, []);
+
+  /** Activa puntualmente un mes que no estaba en la lista de vigentes (ej. un mes futuro pagado por adelantado). */
+  const agregarMesVisible = useCallback(
+    (puestoId: string, mesIndex: number) => {
+      setPuestos((prev) =>
+        prev.map((p) => {
+          if (p.id !== puestoId || p.mesesVisibles.includes(mesIndex)) return p;
+          const pagosMensuales = p.pagosMensuales[mesIndex]
+            ? p.pagosMensuales
+            : {
+                ...p.pagosMensuales,
+                [mesIndex]: {
+                  rentaMensual: "",
+                  pagosAdicionales: [],
+                  rubros: construirRubroRentaMensual(parseFloat(p.valorMensual) || 0, rubrosCatalogo),
+                  guardado: false,
+                  editando: false,
+                },
+              };
+          return { ...p, mesesVisibles: [...p.mesesVisibles, mesIndex].sort((a, b) => a - b), pagosMensuales };
+        })
+      );
+    },
+    [rubrosCatalogo]
+  );
 
   const calcularTotalMes = useCallback((puesto: PuestoLocal, mesIndex: number): number => {
     const pagoMes = puesto.pagosMensuales[mesIndex];
@@ -242,6 +309,7 @@ export default function PagosMensualesPage() {
           actualizarPuesto(puesto.id, "numeroPuesto", original.numero_puesto);
           actualizarPuesto(puesto.id, "tipoPuesto", original.tipo_puesto);
           actualizarPuesto(puesto.id, "valorDiario", original.valor_diario.toString());
+          actualizarPuesto(puesto.id, "valorMensual", original.valor_renta_mensual.toString());
           actualizarPuesto(puesto.id, "codigo", original.codigo);
         }
       } finally {
@@ -261,6 +329,7 @@ export default function PagosMensualesPage() {
           numero_puesto: puesto.numeroPuesto,
           tipo_puesto: puesto.tipoPuesto,
           valor_diario: parseFloat(puesto.valorDiario),
+          valor_renta_mensual: parseFloat(puesto.valorMensual) || 0,
           numero_identidad: (puesto.numeroIdentidad ?? "").trim() || null,
           rtn: (puesto.rtn ?? "").trim() || null,
         });
@@ -441,6 +510,7 @@ export default function PagosMensualesPage() {
         numero_puesto: puesto.numeroPuesto,
         tipo_puesto: puesto.tipoPuesto,
         valor_diario: parseFloat(puesto.valorDiario) || 0,
+        valor_renta_mensual: parseFloat(puesto.valorMensual) || 0,
         anio,
         activo: true,
         codigo: puesto.codigo || "",
@@ -497,6 +567,7 @@ export default function PagosMensualesPage() {
             onActualizarRubroMes={actualizarRubroMes}
             onAgregarRubroMes={agregarRubroMes}
             onEliminarRubroMes={eliminarRubroMes}
+            onAgregarMesVisible={agregarMesVisible}
             rubrosCatalogo={rubrosCatalogo}
             onCalcularDeudaMesesVencidos={calcularDeudaMesesVencidosPuesto}
             saldoPendienteReal={saldoPorPuesto[puesto.numeroPuesto]}

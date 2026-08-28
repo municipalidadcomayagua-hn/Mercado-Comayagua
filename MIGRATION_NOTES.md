@@ -608,3 +608,24 @@ La lógica de registrar un abono (selección de meses pendientes/rubro aplicado,
 
 ### `TIPOS_PUESTO` centralizado
 La lista de 28 giros comerciales (agregada en una fase anterior de esta sesión solo en Locatarios) se movió a `src/lib/data/types.ts` junto a `RUBRO_RENTA_MENSUAL`, y ahora también la usa el selector de "Tipo" al editar un locatario desde Pagos (`PuestoCardMensual.tsx`), que hasta ahora se había quedado con las 5 opciones originales.
+
+---
+
+## 23. Renta mensual independiente, meses vigentes dinámicos y mora por período
+
+El equipo pidió, en esencia, un rediseño del modelo de cargos (`cargo_mensual`/`cargo_rubro`/`mora` como tablas nuevas). Al revisar el código, casi todo ya existía — solo modelado distinto (cargos mensuales como filas de `cobros`, rubros en `cobros_pagos_adicionales`, abonos ya existentes, mora ya existente vía `deudas_mora`). **Confirmado con el usuario: extender lo existente, no reemplazar el esquema** — mucho menor riesgo sobre datos reales que ya están en producción. Lo que realmente faltaba:
+
+### 1. `valor_renta_mensual` en `puestos` (migración `0007_mejoras_pagos.sql`)
+Campo nuevo, independiente de `valor_diario` — **no se deriva uno del otro** (en la práctica diario × 30 casi nunca da un mensual redondo; el equipo quiere poder cobrar L.1000 aunque el diario sea L.35.48). Se pide en el formulario de Locatarios junto al diario, default 0 para no romper locatarios ya existentes.
+
+### 2. Calculadora de días en `RegistrarAbonoModal`
+Prop opcional `valorDiario`: si se pasa, aparece un campo "Días trabajados" que autocompleta el monto del abono como `días × valorDiario` (ej. 4 × L.35.48 = L.141.92) — sigue siendo editable a mano. Solo se usa desde la pestaña "Pago diario / Abono" de Pagos (`PuestoCardMensual`), donde ya se tiene el valor diario del locatario a mano; en Estado de cuenta (vista global del mercado) el prop queda sin usar.
+
+### 3. Precarga automática de "Renta mensual" en meses nuevos
+Un mes sin cargo guardado ya no arranca vacío: si el locatario tiene `valor_renta_mensual > 0`, se precarga como rubro — real del catálogo si existe uno cuyo concepto incluya "renta mensual" (mismo patrón que `findRentaMensualRubro`, ya usado en Reportes admin), o una fila reemplazable con "Cambiar" si no existe. Sigue siendo 100% editable/eliminable antes de guardar. Implementado en `construirRubroRentaMensual` (`pagos-mensuales/page.tsx`), usado tanto al cargar la pantalla como al activar un mes con "+ Agregar mes".
+
+### 4. Meses vigentes dinámicos
+`PuestoCardMensual` pintaba siempre los 12 meses, incluso los que no habían pasado. Ahora `PuestoLocal.mesesVisibles` (calculado en `loadPuestosGuardados`) limita la lista a Enero–mes actual, más cualquier mes que ya tenga cargo guardado. Un control "+ Agregar mes" permite activar puntualmente un mes fuera de ese rango (ej. pagar un mes por adelantado). No se tocó la forma de `pagosMensuales` (sigue siendo un solo año por puesto, como ya era) — la extensión a múltiples años se dejó fuera a propósito (ver siguiente punto).
+
+### 5. Mora por período
+`deudas_mora` gana columnas `anio`/`mes` (nullables — la mora que ya genera Cierre Anual automáticamente sigue sin mes específico, "mora general del año"). "Gestionar mora" (`SeccionMoraLocatario.tsx`) ahora pide un período opcional (año + mes) al registrar una deuda; se ve en la tarjeta de la deuda y en el recibo (`ReciboAbonoMora`). **Esta es la vía elegida para la deuda de años anteriores** (en vez de extender `cobros`/`cuentas_por_cobrar` a múltiples años): `getCuentasPorMercado` resetea el saldo pendiente a 0 cada año a propósito (comentario ya existente en `cuentas.repo.ts`), y esa regla se dejó intacta — la deuda vieja se carga como mora anclada a su período, no como un cargo mensual nuevo.

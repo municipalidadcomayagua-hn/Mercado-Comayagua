@@ -21,7 +21,10 @@ export async function crearDeudaMora(
   rubroConcepto: string,
   montoTotal: number,
   descripcion?: string,
-  mercadoId?: string
+  mercadoId?: string,
+  /** Periodo (mes/anio) al que se ancla la deuda - opcional, "mora general" cuando no se especifica (ej. la que genera Cierre anual). */
+  anio?: number,
+  mes?: number
 ): Promise<string> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -40,6 +43,8 @@ export async function crearDeudaMora(
       total_abonado: 0,
       saldo_pendiente: montoTotal,
       mercado_id: mercadoId?.trim() || null,
+      anio: anio ?? null,
+      mes: mes ?? null,
     })
     .select("id")
     .single();
@@ -68,6 +73,9 @@ export interface ResultadoRegistroAbonoMora {
   rubroConcepto: string;
   saldoPendienteDespues: number;
   usuarioNombre: string;
+  /** Periodo (mes/anio) de la deuda, si se especifico al crearla. */
+  anio?: number | null;
+  mes?: number | null;
 }
 
 /** Registra un abono a una deuda en mora y genera recibo. */
@@ -142,6 +150,8 @@ export async function registrarAbonoMora(
     rubroConcepto: deuda.rubro_concepto ?? "",
     saldoPendienteDespues,
     usuarioNombre,
+    anio: deuda.anio,
+    mes: deuda.mes,
   };
 }
 

@@ -679,11 +679,13 @@ export type Database = {
       }
       deudas_mora: {
         Row: {
+          anio: number | null
           cobrador_id: string
           created_at: string
           descripcion: string | null
           id: string
           mercado_id: string | null
+          mes: number | null
           monto_total: number
           nombre_cliente: string
           numero_puesto: string
@@ -697,11 +699,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          anio?: number | null
           cobrador_id: string
           created_at?: string
           descripcion?: string | null
           id?: string
           mercado_id?: string | null
+          mes?: number | null
           monto_total: number
           nombre_cliente: string
           numero_puesto: string
@@ -715,11 +719,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          anio?: number | null
           cobrador_id?: string
           created_at?: string
           descripcion?: string | null
           id?: string
           mercado_id?: string | null
+          mes?: number | null
           monto_total?: number
           nombre_cliente?: string
           numero_puesto?: string
@@ -869,6 +875,7 @@ export type Database = {
           telefono: string | null
           tipo_puesto: string
           valor_diario: number
+          valor_renta_mensual: number
         }
         Insert: {
           activo?: boolean
@@ -892,6 +899,7 @@ export type Database = {
           telefono?: string | null
           tipo_puesto: string
           valor_diario?: number
+          valor_renta_mensual?: number
         }
         Update: {
           activo?: boolean
@@ -915,6 +923,7 @@ export type Database = {
           telefono?: string | null
           tipo_puesto?: string
           valor_diario?: number
+          valor_renta_mensual?: number
         }
         Relationships: [
           {

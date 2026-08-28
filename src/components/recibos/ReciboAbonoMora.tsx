@@ -11,6 +11,7 @@ import BotonesImpresionRecibo from "./BotonesImpresionRecibo";
 import type { ResultadoRegistroAbonoMora } from "@/lib/data/repositories/mora.repo";
 
 const formatCurrency = (n: number) => `L. ${n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const MESES_NOMBRES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 interface ReciboAbonoMoraProps {
   resultado: ResultadoRegistroAbonoMora;
@@ -21,6 +22,7 @@ interface ReciboAbonoMoraProps {
 /** Recibo de abono a deuda en mora (puerto de ReciboAbonoMora.tsx original). */
 export default function ReciboAbonoMora({ resultado, mercadoNombre, onClose }: ReciboAbonoMoraProps) {
   const fechaFormateada = resultado.fecha.toLocaleDateString("es-HN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const periodoTexto = resultado.mes ? `${MESES_NOMBRES[resultado.mes - 1]} ${resultado.anio ?? ""}`.trim() : null;
 
   const getReceiptLinesForBluetooth = (): string[] => {
     const mercado = mercadoNombre ? mercadoNombre : "Mercado Municipal";
@@ -35,6 +37,7 @@ export default function ReciboAbonoMora({ resultado, mercadoNombre, onClose }: R
       `Contribuyente: ${left(resultado.nombreCliente)}`,
       `Nº Puesto: ${resultado.numeroPuesto}`,
       `Rubro: ${left(resultado.rubroConcepto)} (Tipo: MORA)`,
+      ...(periodoTexto ? [`Período: ${periodoTexto}`] : []),
       `Monto abonado: ${formatCurrency(resultado.monto)}`,
       `Saldo pendiente: ${formatCurrency(resultado.saldoPendienteDespues)}`,
       `Registrado por: ${left(resultado.usuarioNombre)}`,
@@ -79,6 +82,12 @@ export default function ReciboAbonoMora({ resultado, mercadoNombre, onClose }: R
             </Text>
           </Text>
         </HStack>
+        {periodoTexto && (
+          <HStack>
+            <Text fontWeight="bold" minW="140px">Período:</Text>
+            <Text>{periodoTexto}</Text>
+          </HStack>
+        )}
         <HStack>
           <Text fontWeight="bold" minW="140px">Monto abonado:</Text>
           <Text fontWeight="bold" color="green.600">{formatCurrency(resultado.monto)}</Text>

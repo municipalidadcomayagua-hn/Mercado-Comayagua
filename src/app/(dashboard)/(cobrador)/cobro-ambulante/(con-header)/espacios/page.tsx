@@ -65,6 +65,7 @@ interface DraftEspacio {
   numeroPuesto: string;
   tipoPuesto: string;
   valorDiario: string;
+  valorMensual: string;
   numeroIdentidad: string;
   rtn: string;
   direccionCliente: string;
@@ -81,6 +82,7 @@ const DRAFT_VACIO: DraftEspacio = {
   numeroPuesto: "",
   tipoPuesto: "",
   valorDiario: "",
+  valorMensual: "",
   numeroIdentidad: "",
   rtn: "",
   direccionCliente: "",
@@ -262,6 +264,7 @@ export default function EspaciosPage() {
         numero_puesto: draftEspacio.numeroPuesto.trim(),
         tipo_puesto: draftEspacio.tipoPuesto,
         valor_diario: parseFloat(draftEspacio.valorDiario) || 0,
+        valor_renta_mensual: parseFloat(draftEspacio.valorMensual) || 0,
         anio,
         activo: true,
         numero_identidad: draftEspacio.numeroIdentidad.trim() || null,
@@ -295,6 +298,7 @@ export default function EspaciosPage() {
         numero_puesto: draftEspacio.numeroPuesto.trim(),
         tipo_puesto: draftEspacio.tipoPuesto,
         valor_diario: parseFloat(draftEspacio.valorDiario) || 0,
+        valor_renta_mensual: parseFloat(draftEspacio.valorMensual) || 0,
         numero_identidad: draftEspacio.numeroIdentidad.trim() || null,
         rtn: draftEspacio.rtn.trim() || null,
         direccion_cliente: draftEspacio.direccionCliente.trim() || null,
@@ -341,6 +345,7 @@ export default function EspaciosPage() {
         numero_puesto: draftEspacio.numeroPuesto.trim(),
         tipo_puesto: draftEspacio.tipoPuesto,
         valor_diario: parseFloat(draftEspacio.valorDiario) || 0,
+        valor_renta_mensual: parseFloat(draftEspacio.valorMensual) || 0,
         anio,
         activo: true,
         numero_identidad: draftEspacio.numeroIdentidad.trim() || null,
@@ -491,6 +496,13 @@ export default function EspaciosPage() {
               <FormControl>
                 <FormLabel fontSize={{ base: "sm", md: "md" }}>Valor de renta diaria (L.)</FormLabel>
                 <Input type="number" step="0.01" min="0" value={draftEspacio.valorDiario} onChange={(e) => setDraftEspacio((d) => ({ ...d, valorDiario: e.target.value }))} placeholder="0.00" size={{ base: "md", md: "lg" }} />
+              </FormControl>
+              <FormControl>
+                <FormLabel fontSize={{ base: "sm", md: "md" }}>Valor de renta mensual (L.)</FormLabel>
+                <Input type="number" step="0.01" min="0" value={draftEspacio.valorMensual} onChange={(e) => setDraftEspacio((d) => ({ ...d, valorMensual: e.target.value }))} placeholder="0.00" size={{ base: "md", md: "lg" }} />
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  Independiente del diario (no se calcula automático) — se usa para precargar el rubro de renta en Pagos.
+                </Text>
               </FormControl>
               <FormControl>
                 <FormLabel fontSize={{ base: "sm", md: "md" }}>Nº identidad (opcional)</FormLabel>
@@ -765,6 +777,11 @@ export default function EspaciosPage() {
                             Renta diaria: {formatCurrency(p.valor_diario)}
                           </Text>
                         )}
+                        {p.valor_renta_mensual > 0 && (
+                          <Text fontSize="sm" fontWeight="500" color="blue.600">
+                            Renta mensual: {formatCurrency(p.valor_renta_mensual)}
+                          </Text>
+                        )}
                         {p.direccion_cliente?.trim() && (
                           <Text fontSize="xs" color="gray.500" noOfLines={1} title={p.direccion_cliente}>
                             Dir: {p.direccion_cliente}
@@ -830,6 +847,7 @@ export default function EspaciosPage() {
                             numeroPuesto: p.numero_puesto,
                             tipoPuesto: p.tipo_puesto,
                             valorDiario: p.valor_diario.toString(),
+                            valorMensual: p.valor_renta_mensual.toString(),
                             numeroIdentidad: p.numero_identidad ?? "",
                             rtn: p.rtn ?? "",
                             direccionCliente: p.direccion_cliente ?? "",
